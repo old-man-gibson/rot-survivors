@@ -1,0 +1,12 @@
+# Licensed asset packs (Epic RPG World) — large and not redistributable
+tilemaps/
+
+# Local tool scratch
+.codex-remote-attachments/
+.claude/settings.local.json
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+node_modules/

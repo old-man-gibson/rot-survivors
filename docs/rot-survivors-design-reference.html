@@ -1,0 +1,392 @@
+<meta charset="utf-8">
+<title>Rot Survivors Design Reference</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ground:#e4dfd5; --panel:#ece8e0; --panel2:#f3f0ea; --rule:#c6bfb3; --rule2:#d8d2c6;
+    --text:#1c1a18; --dim:#6f6660; --faint:#8d837c; --accent:#9c2b2b; --good:#4f7a2a; --mono-bg:#dcd6ca;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0e0d0c; --panel:#161413; --panel2:#1c1a18; --rule:#3a3230; --rule2:#2a2422;
+      --text:#e8e2d8; --dim:#8d837c; --faint:#6f6660; --accent:#b23a34; --good:#9ec37a; --mono-bg:#1c1a18;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0e0d0c; --panel:#161413; --panel2:#1c1a18; --rule:#3a3230; --rule2:#2a2422;
+    --text:#e8e2d8; --dim:#8d837c; --faint:#6f6660; --accent:#b23a34; --good:#9ec37a; --mono-bg:#1c1a18;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+  body{margin:0;background:var(--ground);color:var(--text);font-family:"Spectral",Georgia,"Times New Roman",serif;font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:3px}
+  a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  .wrap{max-width:76ch;margin:0 auto;padding:40px 24px 96px}
+  @media (max-width:600px){.wrap{padding:28px 16px 72px}}
+  h1,h2,h3,.eyebrow,.toc a,th,.legend b,.kv b,.tag{font-family:"Barlow Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif}
+  h1{font-size:56px;line-height:.95;font-weight:700;letter-spacing:-.01em;margin:8px 0 14px;text-wrap:balance}
+  h2{font-size:30px;line-height:1.05;font-weight:600;margin:60px 0 16px;padding-top:18px;border-top:1px solid var(--rule);text-wrap:balance}
+  h3{font-size:21px;line-height:1.15;font-weight:600;margin:26px 0 8px;text-wrap:balance}
+  .eyebrow{font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+  p{margin:0 0 14px}
+  ul,ol{margin:0 0 14px;padding-left:22px}
+  li{margin:0 0 6px}
+  .lede{font-size:19px;line-height:1.5}
+  .dim{color:var(--dim)}
+  code,.mono{font-family:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;font-size:.86em}
+  code{background:var(--mono-bg);padding:1px 5px;border-radius:3px}
+  strong{font-weight:600} em{font-style:italic}
+  header{padding-bottom:22px;border-bottom:1px solid var(--rule)}
+  .meta{display:flex;flex-wrap:wrap;gap:6px 22px;font-family:"IBM Plex Mono",Consolas,monospace;font-size:13px;color:var(--dim);margin-top:14px}
+  .meta b{color:var(--text);font-weight:500}
+  .toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 18px;margin:22px 0 0;padding:0;list-style:none}
+  .toc li{margin:0}
+  .toc a{font-size:16px;font-weight:600;letter-spacing:.02em;text-decoration:none;color:var(--text)}
+  .toc a:hover{color:var(--accent)}
+  .toc span{color:var(--faint);font-family:"IBM Plex Mono",Consolas,monospace;font-size:12px;margin-right:8px}
+  .wheel{display:grid;grid-template-columns:250px 1fr;gap:24px;align-items:start;margin-top:10px}
+  @media (max-width:640px){.wheel{grid-template-columns:1fr}}
+  .wheel svg{width:100%;height:auto;display:block}
+  .wheel .chord{stroke:var(--dim);stroke-opacity:.35;stroke-width:1.2}
+  .wheel .node{stroke:var(--ground);stroke-width:3}
+  .wheel .idx{font-family:"Barlow Condensed",Arial,sans-serif;font-weight:700;font-size:22px;fill:#0e0d0c;text-anchor:middle;dominant-baseline:central}
+  .wheel .anchor{stroke:var(--text);stroke-width:2.5;fill:none}
+  .legend{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+  .legend li{display:grid;grid-template-columns:14px 22px 1fr;gap:10px;align-items:baseline;font-size:15px;line-height:1.35;margin:0}
+  .legend .sw{width:14px;height:14px;border-radius:50%;align-self:center;border:1px solid var(--rule)}
+  .legend b{font-weight:600;font-size:17px}
+  .legend .n{font-family:"IBM Plex Mono",Consolas,monospace;font-size:13px;color:var(--dim)}
+  .legend .w{color:var(--dim)}
+  .caption{font-size:14px;color:var(--dim);margin-top:12px;line-height:1.45}
+  .callout{margin:18px 0;padding:16px 20px;background:var(--panel);border-left:3px solid var(--accent)}
+  .callout p:last-child{margin-bottom:0}
+  .formula{font-family:"IBM Plex Mono",Consolas,monospace;font-size:14.5px;line-height:1.6;background:var(--panel);padding:12px 16px;border-radius:3px;margin:12px 0 16px;overflow-x:auto;white-space:nowrap}
+  .tablewrap{overflow-x:auto;margin:12px 0 18px;border:1px solid var(--rule);border-radius:3px;background:var(--panel)}
+  table{border-collapse:collapse;width:100%;font-size:14.5px;line-height:1.45;font-variant-numeric:tabular-nums}
+  th,td{padding:8px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule2)}
+  th{font-size:14px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;color:var(--dim);background:var(--panel2);white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  td.n{font-family:"IBM Plex Mono",Consolas,monospace;font-size:13.5px;white-space:nowrap}
+  td.num{text-align:right;font-family:"IBM Plex Mono",Consolas,monospace;font-size:13.5px;white-space:nowrap}
+  .sw2{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:7px;vertical-align:-1px}
+  .steps{list-style:none;margin:0;padding:0}
+  .steps li{display:grid;grid-template-columns:40px 1fr;gap:0 12px;padding:10px 0;border-top:1px solid var(--rule2);margin:0}
+  .steps li:first-child{border-top:0}
+  .steps .k{font-family:"Barlow Condensed",Arial,sans-serif;font-size:26px;font-weight:700;color:var(--accent);line-height:1;padding-top:2px}
+  .steps p{margin:0}
+  .kv{font-family:"IBM Plex Mono",Consolas,monospace;font-size:13.5px;color:var(--dim);margin:6px 0 0;line-height:1.5}
+  .kv b{color:var(--text);font-weight:600;font-family:"IBM Plex Mono",Consolas,monospace}
+  .tag{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:3px;background:var(--mono-bg);color:var(--dim);margin-left:6px;vertical-align:2px}
+  .tag.open{color:var(--accent)}
+  footer{margin-top:64px;padding-top:18px;border-top:1px solid var(--rule);font-size:14px;color:var(--dim)}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Design reference · 6 September 2026 · prototype build</div>
+  <h1>Rot Survivors Design Reference</h1>
+  <p class="lede">Everything the game is, as it stands in the playable prototype: the fiction, the nine‑god wheel, the blood economy, wrath, the finite world and the things that eat it, the chain, war, rival priests, breakable seats, the weapons, the numbers, and what is still open.</p>
+  <div class="meta">
+    <span>form <b>single‑file HTML5 canvas, phone‑first</b></span><span>gods <b>9</b></span><span>weapons <b>9</b></span><span>cards <b>47</b></span><span>towns per world <b>14</b></span><span>world blood <b>~15–27k</b></span>
+  </div>
+  <ul class="toc">
+    <li><a href="#premise"><span>§1</span>Premise</a></li>
+    <li><a href="#wheel"><span>§2</span>The wheel</a></li>
+    <li><a href="#loop"><span>§3</span>The loop</a></li>
+    <li><a href="#blood"><span>§4</span>Blood</a></li>
+    <li><a href="#altar"><span>§5</span>The altar</a></li>
+    <li><a href="#wrath"><span>§6</span>Wrath</a></li>
+    <li><a href="#world"><span>§7</span>The world</a></li>
+    <li><a href="#servants"><span>§8</span>Servants</a></li>
+    <li><a href="#chain"><span>§9</span>The blood chain</a></li>
+    <li><a href="#war"><span>§10</span>War</a></li>
+    <li><a href="#priests"><span>§11</span>Rival priests</a></li>
+    <li><a href="#seats"><span>§12</span>Breaking a seat</a></li>
+    <li><a href="#weapons"><span>§13</span>Weapons and conditions</a></li>
+    <li><a href="#end"><span>§14</span>How a run ends</a></li>
+    <li><a href="#numbers"><span>§15</span>The numbers</a></li>
+    <li><a href="#principles"><span>§16</span>Principles and constraints</a></li>
+    <li><a href="#open"><span>§17</span>Open questions</a></li>
+    <li><a href="#tests"><span>§18</span>What testing showed</a></li>
+  </ul>
+</header>
+
+<h2 id="premise">§1 Premise</h2>
+<p>Nine gods move from world to world like locusts and consume each one. This world is being consumed now. The player is one of many priests, each sworn to one god, each trying to take the largest share of the world before it is gone. The genre is the survivors‑like: a horde, auto‑firing weapons, a run of twenty to thirty minutes, a thumbstick or four keys. The tone is horror‑adjacent and played entirely straight. It is not a comedy and it is not grimdark; the player is simply a worse thing than what they fight, and the game never blinks at that.</p>
+<p>Three ideas carry the design. <strong>Blood is the only currency</strong>, and the world holds a finite amount of it. <strong>The price of a choice is a function of the shape of your other choices</strong>: the nine gods sit on a wheel, and every favor you buy from one angers the gods across from it. <strong>The world is eaten by the gods whether you act or not</strong>, so the score is your share of it, and the enemies you fight are made of the blood you failed to take.</p>
+
+<h2 id="wheel">§2 The wheel</h2>
+<div class="wheel">
+  <svg viewBox="0 0 500 500" role="img" aria-label="Nine gods on a ring; chords join each to its two antipodes.">
+    <g class="chord">
+      <line x1="250" y1="80" x2="308.1" y2="409.7"/><line x1="359.3" y1="119.8" x2="191.9" y2="409.7"/>
+      <line x1="417.4" y1="220.5" x2="102.8" y2="335"/><line x1="397.2" y1="335" x2="82.6" y2="220.5"/>
+      <line x1="308.1" y1="409.7" x2="140.7" y2="119.8"/><line x1="191.9" y1="409.7" x2="250" y2="80"/>
+      <line x1="102.8" y1="335" x2="359.3" y2="119.8"/><line x1="82.6" y1="220.5" x2="417.4" y2="220.5"/>
+      <line x1="140.7" y1="119.8" x2="397.2" y2="335"/>
+    </g>
+    <circle class="anchor" cx="250" cy="80" r="30"/><circle class="anchor" cx="397.2" cy="335" r="30"/><circle class="anchor" cx="102.8" cy="335" r="30"/>
+    <circle class="node" cx="250" cy="80" r="22" fill="#7a9a3f"/><text class="idx" x="250" y="80">0</text>
+    <circle class="node" cx="359.3" cy="119.8" r="22" fill="#b8447a"/><text class="idx" x="359.3" y="119.8">1</text>
+    <circle class="node" cx="417.4" cy="220.5" r="22" fill="#c98a2b"/><text class="idx" x="417.4" y="220.5">2</text>
+    <circle class="node" cx="397.2" cy="335" r="22" fill="#b23a34"/><text class="idx" x="397.2" y="335">3</text>
+    <circle class="node" cx="308.1" cy="409.7" r="22" fill="#e0662a"/><text class="idx" x="308.1" y="409.7">4</text>
+    <circle class="node" cx="191.9" cy="409.7" r="22" fill="#d9c05a"/><text class="idx" x="191.9" y="409.7">5</text>
+    <circle class="node" cx="102.8" cy="335" r="22" fill="#5ab5c9"/><text class="idx" x="102.8" y="335">6</text>
+    <circle class="node" cx="82.6" cy="220.5" r="22" fill="#8a6fc4"/><text class="idx" x="82.6" y="220.5">7</text>
+    <circle class="node" cx="140.7" cy="119.8" r="22" fill="#8a97a8"/><text class="idx" x="140.7" y="119.8">8</text>
+  </svg>
+  <div>
+    <ul class="legend">
+      <li><i class="sw" style="background:#7a9a3f"></i><span class="n">0</span><span><b>Gwulhorlw</b> <span class="w">· Rotting presence · a seeping, pulsing wound</span></span></li>
+      <li><i class="sw" style="background:#b8447a"></i><span class="n">1</span><span><b>The Bottomless</b> <span class="w">· Covetous whisper · a woman in black tentacles</span></span></li>
+      <li><i class="sw" style="background:#c98a2b"></i><span class="n">2</span><span><b>The Ninth Swarm</b> <span class="w">· Devouring flight · a sphere of locusts</span></span></li>
+      <li><i class="sw" style="background:#b23a34"></i><span class="n">3</span><span><b>Hueilei</b> <span class="w">· Blood debt · a blood‑soaked arena</span></span></li>
+      <li><i class="sw" style="background:#e0662a"></i><span class="n">4</span><span><b>The Cinder Jarl</b> <span class="w">· Cinderswing · a colossal flaming sword</span></span></li>
+      <li><i class="sw" style="background:#d9c05a"></i><span class="n">5</span><span><b>The Woken Star</b> <span class="w">· Gravity well · a shrine to the sun</span></span></li>
+      <li><i class="sw" style="background:#5ab5c9"></i><span class="n">6</span><span><b>Ik'Thel'The</b> <span class="w">· Unfold · a strange geometric object</span></span></li>
+      <li><i class="sw" style="background:#8a6fc4"></i><span class="n">7</span><span><b>First Blasphemy</b> <span class="w">· Anti‑sigil · an obelisk, written on</span></span></li>
+      <li><i class="sw" style="background:#8a97a8"></i><span class="n">8</span><span><b>The Pale Ossuary</b> <span class="w">· Carrion rite · a bone tower</span></span></li>
+    </ul>
+    <p class="caption">Outlined nodes are the three archetype anchors. Chords join each god to its two antipodes; together they form the single cycle 0‑4‑8‑3‑7‑2‑6‑1‑5‑0. Only Gwulhorlw, Hueilei and Ik'Thel'The are final names; the other six are working titles.</p>
+  </div>
+</div>
+
+<h3>Why nine</h3>
+<p>Nine is an odd cycle, so no god has a single true opposite. Every god has two allies (ring distance 1), two cousins (2), two rivals (3) and two enemies or antipodes (4). Distance 0 to 4 maps to price multipliers of ×1.00 to ×2.00 in clean quarter‑steps. The ring order encodes playstyle, not only theme: the three anchors sit 120° apart, Gwulhorlw passive and aura at 0, Hueilei melee at 3, Ik'Thel'The ranged at 6, with two bridge gods on each arc. Any three consecutive gods must be a build that plays well together; any god's two antipodes must be things it structurally fights.</p>
+<h3>The conjunction triads</h3>
+<p>{0,3,6}, {1,4,7} and {2,5,8} each take one god from every arc. They are complete archetype sets, they sit at maximum schism cost, and they are the intended endgame builds. A triad angers the other six gods completely: under the wrath kernel in §6, every bridge god reaches full wrath and every triad member sits at zero. That is the scandal a conjunction is meant to be.</p>
+
+<h2 id="loop">§3 The loop</h2>
+<ol class="steps">
+  <li><span class="k">1</span><p><strong>Choose a patron.</strong> You wake at its seat with its weapon. The pick screen names the two gods that will hunt you from the first second and the two that are wary.</p></li>
+  <li><span class="k">2</span><p><strong>Take blood.</strong> Kill the servants of gods that hunt you, walk over what they drop, stand in a settlement and bleed it yourself, and hunt the deep carriers and ripe blood no god can take.</p></li>
+  <li><span class="k">3</span><p><strong>Spend it at the altar.</strong> Raise thresholds of favor in any god. The first threshold grants a weapon; later ones grant cards, a passive, and from threshold 5 a tithe on your enemies' blood. Every favor raises the base price of the next, and every favor angers the gods across the wheel from it.</p></li>
+  <li><span class="k">4</span><p><strong>Live with the wheel.</strong> The gods you anger send hunters. The gods you leave alone eat the world, grow fat, spread their ground, and go to war with each other. Rival priests come for the towns and for you.</p></li>
+  <li><span class="k">5</span><p><strong>Take the largest share.</strong> The run ends when you die, when the world is eaten and everything turns to you, or when you have cast out every rival and your own god turns. The card at the end says what share of the world you took, where it came from, and which god holds the most of what is left.</p></li>
+</ol>
+
+<h2 id="blood">§4 Blood</h2>
+<p>There is one currency and it is finite. A world holds fourteen settlements of 400 to 2,600 blood each, plus a 150‑blood seed at every god's seat, for roughly 15,000 to 27,000 in total. Nothing in the run mints blood: every unit the player banks, every unit a god holds, every orb on the ground and every carrier's cargo came from a town or a seed. The one exception is the chain and tithe multipliers, which are paid at the moment of harvest, not created in the world.</p>
+<h3>Where the priest's blood comes from</h3>
+<ul>
+  <li><strong>Standing in a settlement</strong> bleeds it at 2.0 a second into your bank, about five servants' worth of mouth. Every god feeding there notices.</li>
+  <li><strong>Orbs</strong>: a corpse drops whatever it carried, marked with the provenance of every god it passed through. A hollow hunter drops nothing.</li>
+  <li><strong>The chain bonus</strong>: an orb pays ×1.1 for every god in its mask, computed once, when you pick it up.</li>
+  <li><strong>The tithe</strong>: from threshold 5 in a god, blood wearing one of that god's antipodes' marks pays +12.5% per threshold above 4, so ×1.5 at threshold 8.</li>
+  <li><strong>Breaking a seat</strong> gives you nothing directly: the cast-out god takes its hoard with it. What you gain is its mouths off your towns.</li>
+</ul>
+<div class="formula">harvest = orb.v × 1.1<sup>popcount(mask)</sup> × (1 + Σ<sub>g: T[g]≥5, mask ∩ antipodes(g)</sub> 0.125 × (T[g] − 4))</div>
+<p>Share is <code>harvested / world0</code> and is the score. The HUD shows the world's remaining percentage and your share at all times.</p>
+
+<h2 id="altar">§5 The altar</h2>
+<p>Open the altar at any time with space or the altar button. It shows the wheel, your standing, every god's price, its seat's blood, its wrath, and its tithe. Hovering a purchase redraws the wheel with the wrath that purchase would cause, so you see who you are about to anger before you pay.</p>
+<h3>Price</h3>
+<div class="formula">cost(g) = ceil( 12 × 1.07<sup>favors bought anywhere</sup> × (1 + 0.25 × ringDist(g, patron)) × (1 + schism × (1 − share<sub>g</sub>)) × [2.5 if opening g] )</div>
+<ul>
+  <li><strong>Growth</strong> is global: every favor bought in any god raises the base for every future favor. Depth and breadth cost the same at the base; only the wheel separates them.</li>
+  <li><strong>Ring distance</strong> from the patron adds a quarter per step, so a god across the wheel costs double.</li>
+  <li><strong>Schism</strong> is one minus the length of the resultant vector of your investment over nine directions, so a concentrated portfolio has schism 0 and an evenly spread one approaches 1. The premium falls on gods that hold a small share of your investment. Your <em>true heart</em> is the direction of the resultant, and your <em>standing</em> is devout, wayward, schismatic or apostate choir by schism band.</li>
+  <li><strong>Pledging</strong> a new god costs 2.5× its price, or one token per god already opened beyond the patron. Tokens are torn from rival priests. The patron's first threshold is free.</li>
+</ul>
+<h3>Thresholds</h3>
+<div class="tablewrap"><table>
+  <thead><tr><th>Threshold</th><th>Grants</th></tr></thead>
+  <tbody>
+    <tr><td class="n">1</td><td>The god's weapon.</td></tr>
+    <tr><td class="n">2 and up</td><td>A choice of up to three cards from that god's pool, drawn from those whose minimum threshold you meet; some only surface once another god you hold makes them work.</td></tr>
+    <tr><td class="n">4</td><td>The god's passive.</td></tr>
+    <tr><td class="n">5 to 7</td><td>The tithe: +12.5% per level on blood wearing an antipode's mark.</td></tr>
+    <tr><td class="n">8</td><td>Cap. Some weapons change at the cap (Unfold's Fibonacci splits, Rotting presence's mass detonation).</td></tr>
+  </tbody>
+</table></div>
+<h3>Passives at threshold 4</h3>
+<div class="tablewrap"><table>
+  <tbody>
+    <tr><td><span class="sw2" style="background:#7a9a3f"></span>Gwulhorlw</td><td>+10% max health</td><td><span class="sw2" style="background:#e0662a"></span>The Cinder Jarl</td><td>+12% damage</td></tr>
+    <tr><td><span class="sw2" style="background:#b8447a"></span>The Bottomless</td><td>+15% pickup radius (and +5% per threshold at any level)</td><td><span class="sw2" style="background:#d9c05a"></span>The Woken Star</td><td>+15% effect area</td></tr>
+    <tr><td><span class="sw2" style="background:#c98a2b"></span>The Ninth Swarm</td><td>+8% move speed</td><td><span class="sw2" style="background:#5ab5c9"></span>Ik'Thel'The</td><td>+7% speed and longer mercy</td></tr>
+    <tr><td><span class="sw2" style="background:#b23a34"></span>Hueilei</td><td>+0.5 health a second</td><td><span class="sw2" style="background:#8a6fc4"></span>First Blasphemy</td><td>+12% faster favors</td></tr>
+    <tr><td><span class="sw2" style="background:#8a97a8"></span>The Pale Ossuary</td><td>Minions strike harder</td><td></td><td></td></tr>
+  </tbody>
+</table></div>
+<h3>Cards</h3>
+<p class="dim">Placeholder voice and effects, meant to be built on. Minimum threshold in brackets; a requirement in italics.</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>God</th><th>Cards</th></tr></thead>
+  <tbody>
+    <tr><td>Gwulhorlw</td><td>Wider miasma +30% aura radius [2] · Thicker air +35% aura damage [2] · Patient rot, disease decays 40% slower [3] · Fevered carriers +50% condition transfer per infested stack [3, <em>needs the Swarm</em>] · Burst pustule +60% detonation damage [4]</td></tr>
+    <tr><td>The Bottomless</td><td>Longer covetting +25% whispered reach [2] · Eager hands, thralls strike 33% more often [2] · First betrayal, opening blow at full damage [3] · Faster whisper, turn 25% more often [3] · Shared affliction, thralls pass on 25% of their conditions [4, <em>needs an applier</em>]</td></tr>
+    <tr><td>The Ninth Swarm</td><td>Denser flight +2 projectiles [2] · Sharper mandibles +40% damage [2] · Longer hunger, infested lasts 50% longer [3] · Heavier shrapnel, transfer cap 60% to 85% [3, <em>needs an applier</em>] · Third generation, infestation chains one further [5]</td></tr>
+    <tr><td>Hueilei</td><td>Wider swing +30% radius [2] · Deeper cut +45% bleed damage [2] · Standing wound, bleed on still enemies 40% to 70% [3] · Blood tithe, heal 1.2 per hit [3] · War without end, up to +60% swing damage scaling with schism [4]</td></tr>
+    <tr><td>The Cinder Jarl</td><td>Hotter cinders +50% burn [2] · Longer embers +50% burn life [2] · Broader arc +30% radius [3] · Scorched ground +2 fire patches [3] · Kindling +50% swing damage [4, <em>needs Gwulhorlw</em>]</td></tr>
+    <tr><td>The Woken Star</td><td>Denser core +40% impact [2] · Wider fall +35% radius [2] · Long half‑life +50% radiation life [3] · Heavier drag +40% slow per stack [3] · Long fall +25% pickup radius [3] · Second wormhole, impacts 35% more often [5]</td></tr>
+    <tr><td>Ik'Thel'The</td><td>Longer ray +35% [2] · Cleaner pierce +40% damage [2] · Deeper unfolding +60% shred per stack [3, <em>needs an applier</em>] · Shorter interval, fires 30% more often [3] · Folded distance +25% pickup radius [3] · Early split, Fibonacci splits at threshold 5 [5]</td></tr>
+    <tr><td>First Blasphemy</td><td>Louder sigil +35% radius [2] · Fouler word +45% blast [2] · More glyphs +2 sigils [3] · Faster writing, 30% faster [3] · Unnaming, blasts permanently strip resistance [4]</td></tr>
+    <tr><td>The Pale Ossuary</td><td>Fuller ossuary, raises 30% faster [2] · Heavier bones +45% detonation [2] · Wider grave +35% radius [3] · Longer walk +40% search range [3] · Grave‑borne plague, blasts apply 4 disease stacks [4, <em>needs Gwulhorlw</em>]</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="wrath">§6 Wrath</h2>
+<p>Wrath is the cost of power. It is measured in favors, not blood, and it has three parts.</p>
+<h3>Altar wrath</h3>
+<p>One hostility kernel by ring distance governs everything: which gods send servants at you, how eager two grounds are to war, and who grieves a broken seat.</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>Ring distance</th><th class="num">0 (itself)</th><th class="num">1 ally</th><th class="num">2 cousin</th><th class="num">3 rival</th><th class="num">4 antipode</th></tr></thead>
+  <tbody><tr><td>weight</td><td class="num">−1</td><td class="num">0</td><td class="num">0</td><td class="num">0.5</td><td class="num">1</td></tr></tbody>
+</table></div>
+<div class="formula">wrath<sub>raw</sub>(g) = Σ<sub>h</sub> T[h] × weight(ringDist(g,h))    ·    wrath<sub>altar</sub>(g) = max(0, wrath<sub>raw</sub>(g) + spike[g])</div>
+<p>A god counts its own favors against its anger, so a patron never hunts you unless you heat it yourself, and a spike from a broken friend's seat is absorbed by deep devotion. At the pick, the patron's free first threshold gives its two antipodes wrath 1 and its two rivals 0.5: they hunt you from the first second, lightly. A mono build at threshold 8 puts its antipodes at 8 and its rivals at 4. A triad puts all six bridge gods at 8.</p>
+<h3>Heat</h3>
+<p>Field wrath. Killing a god's servant adds 0.02; bleeding a town its servants are feeding on adds 0.012 a second per mouth. Heat caps at 4 and cools at 0.05 a second, so a few eaters caught in your aura are a trace and a deliberate massacre is a message. The patron ignores heat entirely: it forgives its priest.</p>
+<h3>Spike</h3>
+<p>Breaking a seat gives its allies 8 and its cousins 4.8, unless they were already at war with it. Spike cools at 0.012 a second, roughly ten minutes, and is added before the floor, so it can be absorbed by favor.</p>
+<h3>Heresy</h3>
+<p>The patron's alone. Every seat broken by your hand adds one point, after the floor so devotion cannot absorb it, and it never cools. The patron ignores heat, so this is the only way your own god comes for you.</p>
+<h3>What wrath does</h3>
+<div class="formula">hostile(g) = min(0.85, [0.35 + 0.65 × min(1, wrath<sub>altar</sub>/8) if altar &gt; 0] + (1 − that) × min(1, heat/4) × 0.5)</div>
+<p>Influence comes first. Only 30% of that fraction is born as <em>hunters</em> who come for you at once, a skirmish share of roughly 10 to 25% of an angry god's spawns; the rest are <em>eaters</em>, who go about consuming the world. The real threat is the <strong>host</strong>: an angry god musters an army in reserve at 0.02 + 0.08 per point of wrath per second, scaled by its breeding, and when the muster reaches 10 + 5 × wrath (plus 4 for every host it has already sent) the whole host is born at its seat within two seconds and marches 15% faster, so it arrives as one wave. A warning fires at 70%. The more a god hates you, the faster it musters and the larger the army it waits for; the longer you leave it, the worse the wave. A calmed god slowly stands its host down. When the world is fully eaten, every god sends everything. The HUD's "hunting you" row shows a swatch per god, brighter the more of it is coming, and the "hosts" row shows each gathering host's progress; on the minimap a ring grows around a seat until its host marches.</p>
+
+<h2 id="world">§7 The world</h2>
+<h3>Seats</h3>
+<p>Nine seats on a ring of radius 1,800px, in a random order each run, so which gods are neighbours is a fact about this run. Each is drawn as its own thing: the wound pulses, the sword burns, the locust sphere turns, the sun's rays wheel, the geometric object rotates in three nested polygons. A seat holds blood. Its <strong>ground</strong> is not a circle but forty‑eight spokes around the seat, each with its own radius, drawn as a smooth lobed curve. Blood sets the <em>mean</em> radius, <code>190 + 16 × √blood</code>, so area tracks blood; around that mean each spoke follows a slow three‑frequency swell seeded per god, up to ±22%, and flows toward its target at 30px a second, so a deposit swells the ground over seconds rather than snapping. Neighbouring seats sit about 1,230px apart and their grounds meet once both hold around 700. Where a spoke tip lies inside another ground the edge is <strong>contested</strong>: the side with more blood pushes its contested spokes outward and the other side's inward, at 18px a second per unit of excess, and because the mean is held to blood the pusher's far side pulls in. Contact focuses growth toward the neighbour. Contested edges are drawn bright. Servants inside their own god's ground hit 15% harder and move 10% faster. You wake 140px from your patron's seat, facing the centre.</p>
+<h3>Settlements</h3>
+<p>Fourteen towns scattered inside a 1,500px radius, at least 360px apart and 520px from any seat, each with 400 to 2,600 blood drawn from a distribution that favours the small. A town is drawn as up to sixteen huts, and the huts vanish as it is eaten. A town bleeds 0.4 blood a second per feeding mouth, saturating at six mouths; 35% of every bite falls to the ground as a two‑blood orb wearing the feeder's mark, which the feeder's own god may not take back. Standing in a town bleeds it at 2.0 a second directly into your bank.</p>
+<h3>The minimap</h3>
+<p>Bottom left: every ground, every living town sized by what is left, every seat, and you. Broken seats go dark. Grounds at war are ringed red.</p>
+
+<h2 id="servants">§8 Servants</h2>
+<p>The world's appetite is one curve, 1.7 + 1.9 a minute per second, scaled by 1.35 and split nine ways. Each god's share is multiplied by <code>1 + blood/900</code>, so a fed god breeds more, and the difficulty curve is an outcome rather than a script. The old time‑based HP curve, 9 + 7 a minute, remains as a clock.</p>
+<ul>
+  <li><strong>Born hollow.</strong> A servant spawns at its seat carrying a one‑blood seed debited from the seat. A god that never eats runs dry and sends empty locusts. <code>servantSeed: 0</code> is the pure hollow economy.</li>
+  <li><strong>Two rooms.</strong> At most 220 hunters and 180 eaters exist at once. They never compete for slots: a shared cap with eviction starved the world of mouths in testing.</li>
+  <li><strong>Eaters</strong> want, in order: an enemy at war within 280px, blood on the ground they may take within 140px, the nearest living town, the war wherever it is, then home. At a town they feed until their <em>gullet</em> is full, 10, 30 or 90 by stage, then walk their cargo home and deposit it, which resets them.</li>
+  <li><strong>Hunters</strong> want you. Most arrive as a host, born together and marching together; a thin pale ring marks a host body. A hunter of a god below wrath 4 fights its god's war first when the war is within sense. Any servant at war strikes a hostile body in reach whatever it was doing.</li>
+  <li><strong>Any struck servant retaliates.</strong> Your weapons auto‑fire, so approaching a feeding crowd is a decision. Single‑target weapons prefer things already coming for you.</li>
+  <li><strong>Stage</strong> is chain depth made flesh (§9): radius 9, 14 or 20, HP ×1, ×2.2 or ×4.2, then ×1.1 per depth. Quantity never touches stats; it only decides when a carrier goes home.</li>
+</ul>
+<p>On screen: hue is the god, brightness is whether it is coming for you, size is stage. Eaters are desaturated toward the ground's umber. A thrall is a hollow ring in its god's colour with the Bottomless's core.</p>
+
+<h2 id="chain">§9 The blood chain</h2>
+<p>Every orb carries a nine‑bit mask: the gods its blood has passed through. Every corpse orb carries the dead servant's mask plus its own god's bit. Spill carries the feeder's bit.</p>
+<div class="callout">
+  <p><strong>A mark is a claim, and a god does not eat what is already its own.</strong> A servant may take any orb whose mask does not contain its god. A packet therefore visits each god at most once, so its depth is bounded at nine and its multiplier at 1.1⁹ ≈ 2.36. The priest is a vessel, not a mouth, and takes anything; the offering strips the marks, so banked blood is one number.</p>
+</div>
+<ul>
+  <li><strong>Absorption</strong> is by contact, through the separation grid, after a 0.6‑second delay so a kill inside your reach is yours. Full carriers and those walking home do not absorb.</li>
+  <li><strong>Depth</strong> is the popcount of the mask. Depth 2 is stage 1, depth 3 and up is stage 2. Absorbing raises stage in place, with a flare.</li>
+  <li><strong>The multiplier</strong> is paid once, at your pickup. Monsters move packets at ×1.0, so offline chains cannot create blood.</li>
+  <li><strong>Ripe blood</strong>: orbs three deep merge with each other within 48px and wear a pale outer ring. They are what no god present can take, and they are worth crossing the map for.</li>
+  <li><strong>Pickup</strong> is 105px, plus 5% per Bottomless threshold, plus the reach cards. Fresh single‑mark orbs crawl toward you within three pickup radii; anything absorbed once lies where it fell. A faint ring shows your reach whenever blood is near it.</li>
+  <li><strong>Marks on the rim</strong>: an orb worth two or more shows a coloured tick per god in its mask.</li>
+  <li><strong>The ground is capped</strong> at 900 orbs; the oldest seeps into its nearest neighbour or back into the nearest town.</li>
+  <li><strong>Special marks.</strong> A thrall's kill carries the Bottomless's bit as well as the victim's, a two‑hop packet. The Ninth Swarm's kills carry its bit: the swarm ate first.</li>
+</ul>
+
+<h2 id="war">§10 War</h2>
+<p>Every half second the game measures every pair of grounds. Two grounds that overlap share a border: the contested arc, the longer of the two runs of spoke tips lying inside the other ground. War begins when that arc reaches a length set by the pair's ring distance, and wars never end. A strong ground pushing into a friend's lengthens the border, which is how a takeover of an ally becomes a war.</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>Ring distance</th><th class="num">1 ally</th><th class="num">2 cousin</th><th class="num">3 rival</th><th class="num">4 antipode</th></tr></thead>
+  <tbody><tr><td>shared border before war</td><td class="num">420px</td><td class="num">260px</td><td class="num">120px</td><td class="num">0, on touch</td></tr></tbody>
+</table></div>
+<p>At war, servants seek hostile servants within 280px and strike in reach for 0.22× the player‑facing damage every half second, so a duel lasts five to ten seconds rather than one touch. Kills in war drop marked orbs the winners can take, which is how the chain runs without you. Grounds at war are drawn brighter and ringed red; each war is announced. Servants do not attack seats.</p>
+
+<h2 id="priests">§11 Rival priests</h2>
+<p>You are one of many. Every 75 seconds a priest of the angriest god leaves its seat, with at most three in the world at once. It is drawn like you, a bone dot in its god's colour, at boss size with 34× HP, carrying 25 of its god's blood.</p>
+<ul>
+  <li>Far from you it walks to the nearest living town and bleeds it at 2.0 a second into a <strong>bank</strong>, and it takes any orb it walks over, mask or no mask. The HUD counts living rivals and what they have taken.</li>
+  <li>Within 520px it comes for you. Within 260px it <strong>prays</strong>: every three seconds a filled ring of its colour grows for three quarters of a second where you stood, then lands for 2.2× a servant's touch.</li>
+  <li>When it dies its bank goes home to its god's seat; the god keeps what its priest took. You get its 25 and a pledge token.</li>
+</ul>
+
+<h2 id="seats">§12 Breaking a seat</h2>
+<p>Every seat but your patron's stands in the world as a body your weapons can reach. It has 800 HP plus one per blood it holds, and heals 0.4% of its maximum a second once nothing has struck it for four seconds. Stand near one with nothing hunting you and your weapons turn on it; a bar appears under the glyph.</p>
+<p>Striking a seat is your hand. For as long as the seat's hurt timer runs it heats its god by 0.25 a second, so a sixteen-second siege is a full massacre's worth, and every half second it calls that god's servants within 520 px home to hunt you. A seat cannot be bled quietly while its mouths eat beside you.</p>
+<p>When it breaks, the god is <strong>cast out</strong>: it spawns nothing more, its ground collapses, every servant it still has turns on you, and its hoard <strong>leaves with it</strong>. A swarm takes what it ate to the next world; the ledger counts it as departed. (<code>seatHoard</code> also offers <code>"spills"</code>, the old sixty marked orbs where it stood, and <code>"inherit"</code>, which splits the hoard among surviving gods within two steps, allies weighted double.) The seat becomes a cracked ring. Its two allies rise to wrath 8 and its two cousins to 4.8, unless a friend was already at war with it. Only your own hand wakes them; a thrall's counts as yours.</p>
+<p>Your patron counts what you break. Each seat adds one point of <strong>heresy</strong> to its wrath, after devotion, so no depth of favor absorbs it; the eighth lands exactly on full wrath. Break its neighbours first and the spike gets it there sooner. When the last rival seat falls the patron <strong>turns</strong>: every living servant it has comes for you at once, it musters like any god at full wrath, and nothing from there is forgiven. A swarm with no rivals has no use for a priest.</p>
+
+<h2 id="weapons">§13 Weapons and conditions</h2>
+<div class="tablewrap"><table>
+  <thead><tr><th>God</th><th>Weapon</th><th>What it does</th><th>Condition</th></tr></thead>
+  <tbody>
+    <tr><td>Gwulhorlw</td><td>Rotting presence</td><td>An aura that ticks damage and disease on everything inside it. At threshold 8, every tenth tick detonates half of every disease stack in reach.</td><td>Disease: ticks and self‑consumes, and detonates on death for what is left.</td></tr>
+    <tr><td>The Bottomless</td><td>Covetous whisper</td><td>Turns the nearest servant into a thrall for six to nine seconds. It strikes everything it touches, one free half‑blow on engaging then an even trade every tick, and it seeks bodies rather than you. On expiry it is released, not killed. It cannot take stage‑2 carriers.</td><td>None of its own; it passes on others'.</td></tr>
+    <tr><td>The Ninth Swarm</td><td>Devouring flight</td><td>Volleys of fast locusts that finish the wounded, each target given only the shots it needs. Kills carry the Swarm's mark.</td><td>Infested: inert until death, then shrapnel carrying a slice of the corpse's other conditions, chaining a generation or two.</td></tr>
+    <tr><td>Hueilei</td><td>Blood debt</td><td>A melee arc toward the nearest threat that heals per body struck. One card scales its damage with your schism.</td><td>Bleed: a floor rate that the target's own movement multiplies.</td></tr>
+    <tr><td>The Cinder Jarl</td><td>Cinderswing</td><td>A wider arc that leaves burning ground behind it.</td><td>Burn: high intensity, short.</td></tr>
+    <tr><td>The Woken Star</td><td>Gravity well</td><td>A telegraphed impact on a distant target that pulls while it fuses, then lands.</td><td>Radiation: moderate, slow, long, and the only source of slow, capped at 55%.</td></tr>
+    <tr><td>Ik'Thel'The</td><td>Unfold</td><td>A piercing ray losing 10% per body. At the cap, kills along it spawn Fibonacci‑timed splits.</td><td>Unfolding: shreds condition resistance, so it multiplies every other god's conditions.</td></tr>
+    <tr><td>First Blasphemy</td><td>Anti‑sigil</td><td>Glyphs placed around you. A servant entering one detonates it; you entering one takes the word, a short damage buff.</td><td>None; one card lets its blasts strip resistance permanently.</td></tr>
+    <tr><td>The Pale Ossuary</td><td>Carrion rite</td><td>Minions that walk to the densest blast‑sized cluster in range, commit to it, and detonate on arrival.</td><td>None; one card makes the blast apply disease.</td></tr>
+  </tbody>
+</table></div>
+<p>Trash resists conditions at 8%, staged bodies and seats at 50%. Resistance is shredded by unfolding and stripped by unnaming. Around each body the conditions draw as arcs in their gods' colours, thickness rising with stacks; that arc language is reserved for conditions, so the chain never draws a ring.</p>
+
+<h2 id="end">§14 How a run ends</h2>
+<p>You die, or the world is eaten, or your god is done with you. When the last town is dry, everything in the world turns to you and the gods send all of themselves. When the last rival seat is broken by your hand, your patron does the same with the towns still full, and the share you took before that moment is most of what you will get. Either way the run ends when you fall. The card reads: time survived, kills, blood taken and its share of the world with the split between towns, kills, chain bonus and tithe, what the rival priests took, what you still had banked, how much of the world was left uneaten, and which god holds the most of it and so claims the ending. Once a minute the console logs the same split, for tuning.</p>
+
+<h2 id="numbers">§15 The numbers</h2>
+<p class="dim">The constants as shipped. Each one in the source carries the measurement that set it.</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>Area</th><th>Constant</th><th class="num">Value</th></tr></thead>
+  <tbody>
+    <tr><td>Altar</td><td>base cost · growth per favor · ring step · schism k · pledge multiplier</td><td class="num">12 · 1.07 · 0.25 · 1.0 · 2.5</td></tr>
+    <tr><td>Priest</td><td>HP · speed · pickup · mercy · town bleed</td><td class="num">100 · 196 · 105px · 0.6s · 2.0/s</td></tr>
+    <tr><td>Appetite</td><td>spawn base · per minute · scale · breeding</td><td class="num">1.7/s · 1.9 · 1.35 · 1 + B/900</td></tr>
+    <tr><td>Servants</td><td>HP base · per minute · damage · per minute · caps</td><td class="num">9 · 7 · 6 · 1.8 · 220 hunters / 180 eaters</td></tr>
+    <tr><td>World</td><td>seat ring · town radius · towns · town blood · seat seed · servant seed</td><td class="num">1800 · 1500 · 14 · 400–2600 · 150 · 1</td></tr>
+    <tr><td>Towns</td><td>bleed per mouth · mouths · spill</td><td class="num">0.4/s · 6 · 35%</td></tr>
+    <tr><td>Ground</td><td>mean · spokes · swell · flow · push · push floor · min/max · own‑ground damage · speed</td><td class="num">190 + 16√B · 48 · ±22% · 30/s · 18/s · 120 · 0.25–2.0 · ×1.15 · ×1.10</td></tr>
+    <tr><td>Wrath</td><td>floor · cap · full · heat per kill · heat cap · heat decay · spike · spike decay</td><td class="num">0.35 · 0.85 · 8 · 0.02 · 4 · 0.05/s · 8 · 0.012/s</td></tr>
+    <tr><td>Hosts</td><td>skirmish share · muster base · per wrath · host base · per wrath · growth per host · burst · march speed · warn at</td><td class="num">0.3 · 0.02/s · 0.08/s · 10 · 5 · 4 · 2s · ×1.15 · 70%</td></tr>
+    <tr><td>Chain</td><td>per hop · absorb delay · gullet by stage · stage radius · stage HP · ripe depth · leash</td><td class="num">×1.1 · 0.6s · 10/30/90 · 9/14/20 · 1/2.2/4.2 · 3 · 3 radii</td></tr>
+    <tr><td>War</td><td>border by distance · sense · contact damage</td><td class="num">∞/420/260/120/0 · 280 · 0.22×</td></tr>
+    <tr><td>Rivals</td><td>interval · alive · HP · bleed · prayer cooldown · radius · damage · range</td><td class="num">75s · 3 · 34× · 2.0/s · 3s · 78 · 2.2× · 260</td></tr>
+    <tr><td>Seats</td><td>HP · per blood · regen · regen delay · heat under siege · recall radius · recall every · hoard · heresy per seat</td><td class="num">800 · 1 · 0.4%/s · 4s · 0.25/s · 520 · 0.5s · leaves · 1</td></tr>
+    <tr><td>Tithe</td><td>from threshold · per level</td><td class="num">5 · 12.5%</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="principles">§16 Principles and constraints</h2>
+<ul>
+  <li><strong>All value flows through one allocation against one wheel.</strong> No equipment, no rarity, no rerolls, no second currency. Anything that shares the stage with blood makes the wheel a side system.</li>
+  <li><strong>Nine is load‑bearing.</strong> The odd cycle is what gives every god two of each relationship and a clean price ladder.</li>
+  <li><strong>Wheel order is playstyle.</strong> Three anchors at 120°, bridges between, triads as the endgame.</li>
+  <li><strong>Per‑threshold cost growth stays below ×2.0</strong>, the ceiling of the ring ladder. Above it, opening a new god always beats deepening and the wheel inverts.</li>
+  <li><strong>Nothing is taken away.</strong> Favor never decays and there is no upkeep. Pressure comes from escalating cost, wrath, and a finite world.</li>
+  <li><strong>Stage is depth, never quantity.</strong> Quantity‑scaled strength diverged in simulation; depth is bounded and legible.</li>
+  <li><strong>Blood is conserved.</strong> The world's identity holds at all times: settlements + ground + carried + seats + banks + harvested + departed with cast-out gods = what the world began with, with multipliers paid only at harvest.</li>
+  <li><strong>Played straight.</strong> No comedy, no grimdark, no redemption. The priest is the worse thing.</li>
+</ul>
+
+<h2 id="open">§17 Open questions</h2>
+<ul>
+  <li><strong>Apostasy</strong> <span class="tag open">proposed</span>: renounce a god for a partial refund; it locks out and goes to peak wrath for the run. The one irreversible choice in a genre of acquisition.</li>
+  <li><strong>The conjunction event</strong> <span class="tag open">proposed</span>: completing a triad fuses its three weapons into one named thing while the other six gods peak. The last stretch becomes a different game.</li>
+  <li><strong>Wars against seats</strong> <span class="tag open">decision</span>: servants at war could attack each other's seats, letting the world cast gods out without you, at the cost of spikes and eliminations you never chose.</li>
+  <li><strong>Breaking a god you favor</strong> <span class="tag open">oddity</span>: allowed, and you keep its weapon afterward.</li>
+  <li><strong>The Heretical start</strong> <span class="tag open">proposed</span>: a tenth start with no patron, unlocked by having each of the nine gods turn on you across runs. Every god priced as a cousin, none forgiving, the natural conjunction player. Needs a rule for what ends its run once it has cast out all nine.</li>
+  <li><strong>The Ninth Swarm's identity</strong>: its +1 consume orb is gone; it now marks its kills. It needs a real pass.</li>
+  <li><strong>Six names</strong> are placeholders.</li>
+  <li><strong>Not built by design</strong>: lazy offscreen regions (the whole map simulates in about a millisecond a frame), tiers relative to the factions present (absolute depth fires fine with nine factions), a fixed pressure budget split by wrath share (hollow hunters dissolve the income concern it addressed), and a magnet item (pickup is the Bottomless's).</li>
+</ul>
+
+<h2 id="tests">§18 What testing showed</h2>
+<p class="dim">Fast‑forward runs with an immortal, stationary priest, so pressure is overstated and movement understated.</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>Setup</th><th>Result</th><th>Change made</th></tr></thead>
+  <tbody>
+    <tr><td>Town bleed 1.8 per mouth</td><td>A 12k world 96% eaten by minute four.</td><td>Bleed 0.3, later 0.4; towns 400–2600.</td></tr>
+    <tr><td>Heat 0.05 per kill, decay 0.03</td><td>Every god whose eaters walked past the priest turned hostile within four minutes; hostile gods stopped eating; world stalled at 16% eaten by minute 16.</td><td>Heat 0.02, decay 0.05, patron immune, hostile cap 0.85.</td></tr>
+    <tr><td>Shared cap with eviction</td><td>Every hunter spawn unmade an eater; eaters lived ~17s and mostly never reached a town; world eaten at a fifth of the rate its mouths implied.</td><td>Separate rooms, 220 and 180, no eviction.</td></tr>
+    <tr><td>Bleed 0.3, separate caps</td><td>21k world 55% eaten by minute 22, mouths steady ~170, one war, chains to depth 3.</td><td>Bleed 0.4.</td></tr>
+    <tr><td>Rival priests uncapped</td><td>Eight alive by minute ten had taken a quarter of the world.</td><td>Cap 3.</td></tr>
+    <tr><td>Seat HP base 500</td><td>A threshold‑8 Blood debt broke a fresh seat in nine seconds.</td><td>Base 800.</td></tr>
+    <tr><td>Seat rush: Hueilei, 60 DPS on each seat in turn, nothing bought</td><td>Before: eight seats in about fourteen seconds each, then an uncontested world. After: each seat recalled its eaters within five seconds and heated to 3 by the break; patron wrath 1 after the first seat, 5.8 after a cousin's, full after the third; at the eighth, minute 2.2, share 2.8%, all 122 of the patron's living servants turned and a host of 74 was gathering.</td><td>Heresy, recall, heat on strike, hoard leaves with the god.</td></tr>
+    <tr><td>Patron 8, allies 3, ten minutes</td><td>Raw kills 3,832 · chain 490 · tithe 785 · rivals 3,069 of 21,400.</td><td>Shipped.</td></tr>
+  </tbody>
+</table></div>
+
+<footer>Companion documents: the <a href="https://claude.ai/code/artifact/102ef318-41f7-45ed-aa19-d6337c6ddd51">chain design review</a> that shaped the second and third sessions. Source: <code>prototype.html</code>, one file, about 1,900 lines; every constant lives in <code>CFG</code> with its measurement beside it.</footer>
+</div>

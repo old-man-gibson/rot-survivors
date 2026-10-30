@@ -1,0 +1,56 @@
+[
+  {
+    "source": "EPIC RPG World - Sewers V1.5/Characters/Mutant Rat/mutant rat - idle.png",
+    "w": 42,
+    "h": 42,
+    "frames": 8
+  },
+  {
+    "source": "ERW - Sea Adventures (GL 2.0 expansion) V1.5/Characters/female enemy/female-enemy-anims-idle-8frames.png",
+    "w": 30,
+    "h": 39,
+    "frames": 8
+  },
+  {
+    "source": "EPIC RPG World Pack - Cemetery V 1.6/Characters/bat/Bat2-Idle animation.png",
+    "w": 36,
+    "h": 31,
+    "frames": 8
+  },
+  {
+    "source": "EPIC RPG World Pack - Cemetery V 1.6/Characters/undead/Undead-idle animation.png",
+    "w": 30,
+    "h": 46,
+    "frames": 8
+  },
+  {
+    "source": "Epic RPG World - Volcano V1.6/Characters/imp-like demon/no shadow/imp-idle_9frames.png",
+    "w": 56,
+    "h": 47,
+    "frames": 9
+  },
+  {
+    "source": "Epic RPG World - Volcano V1.6/Characters/elemental/elemental-idle_8frames.png",
+    "w": 64,
+    "h": 79,
+    "frames": 8
+  },
+  {
+    "source": "Epic RPG World - The dephs of the Mountain V1.5.1/Characters/Enemy 1/enemy 1-idle.png",
+    "w": 68,
+    "h": 51,
+    "frames": 8
+  },
+  {
+    "source": "EPIC RPG World Pack - Crypt V.1.6/Characters/Big Worm 1/Big worm - 1-idle-8 frames.png",
+    "w": 43,
+    "h": 46,
+    "frames": 8
+  },
+  {
+    "source": "EPIC RPG World Pack - Old Prison V1.7.1/Characters/Mage Skeleton/Mage Skeleton no shield/Mage Skeleton - animations-idle.png",
+    "w": 61,
+    "h": 54,
+    "frames": 8
+  }
+]

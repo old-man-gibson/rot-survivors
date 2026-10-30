@@ -1,0 +1,2194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Rot Survivors</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#0e0d0c;overflow:hidden;overscroll-behavior:none;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+    font-family:ui-sans-serif,system-ui,"Segoe UI",sans-serif;color:#e8e2d8}
+  canvas{display:block;position:absolute;inset:0;touch-action:none}
+
+  #altarBtn{display:none;position:absolute;right:14px;bottom:18px;z-index:5;
+    background:#161413ee;border:1px solid #4a403c;border-radius:12px;
+    padding:15px 24px;color:#e8e2d8;font:inherit;font-size:15px}
+  #hintTouch{display:none}
+  .panel{position:absolute;background:#161413ee;border:1px solid #3a3230;border-radius:10px}
+  /* readouts only — must never swallow a thumbstick drag */
+  #hud,#gods{pointer-events:none}
+
+  #hud{top:12px;left:12px;padding:10px 14px;font-size:13px;line-height:1.6;min-width:226px;max-width:min(440px,calc(100vw - 24px))}
+  #hud b{font-weight:500;color:#fff}
+  #hpbar{height:7px;background:#2a2422;border-radius:4px;overflow:hidden;margin:6px 0 8px}
+  #hpfill{height:100%;background:#b23a34;width:100%;transition:width .12s}
+  .dim{color:#8d837c}
+  #gods{top:12px;right:12px;padding:10px 12px;font-size:12px;line-height:1.7;min-width:196px}
+  .gline{display:flex;justify-content:space-between;gap:10px}
+  .swatch{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px}
+
+  #toast{position:absolute;left:50%;top:64px;transform:translateX(-50%);font-size:14px;
+    padding:8px 16px;border-radius:8px;background:#161413ee;border:1px solid #3a3230;
+    opacity:0;transition:opacity .25s;pointer-events:none}
+
+  .screen{position:absolute;inset:0;z-index:10;background:#0e0d0ce8;display:none;
+    align-items:center;justify-content:center;padding:24px;overflow:auto}
+  .screen.on{display:flex}
+  .card{background:#161413;border:1px solid #3a3230;border-radius:14px;
+    padding:26px 30px;max-width:960px;width:100%}
+  h1{font-size:22px;font-weight:500;margin-bottom:6px}
+  h2{font-size:17px;font-weight:500;margin-bottom:14px}
+  p.sub{font-size:13px;color:#8d837c;line-height:1.6;margin-bottom:18px}
+
+  .grid9{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:16px}
+  .gbtn{text-align:left;background:#1e1a19;border:1px solid #3a3230;border-radius:9px;
+    padding:11px 13px;cursor:pointer;color:#e8e2d8;font:inherit;font-size:13px}
+  .gbtn:hover{border-color:#6b5d58;background:#241f1d}
+  .gbtn .w{font-size:11px;color:#8d837c;margin-top:3px}
+  .gbtn .a{font-size:11px;color:#6f6660;margin-top:2px}
+
+  .altwrap{display:grid;grid-template-columns:340px 1fr;gap:26px;align-items:start}
+  .row{display:grid;grid-template-columns:1fr 60px 82px 70px;gap:10px;align-items:center;
+    padding:7px 9px;border-radius:8px;font-size:13px}
+  .row.own{background:#1c1a18}
+  .row.no{opacity:.42}
+  .row .nm{display:flex;align-items:center;gap:2px}
+  .row .th{font-size:11px;color:#8d837c;text-align:right}
+  .row .ct{font-variant-numeric:tabular-nums;text-align:right;font-size:13px}
+  .row .ct.ok{color:#9ec37a}.row .ct.bad{color:#8d837c}
+  .buy{background:#2a2422;border:1px solid #4a403c;border-radius:6px;padding:5px 0;
+    font:inherit;font-size:12px;color:#e8e2d8;cursor:pointer;width:100%}
+  .buy:disabled{opacity:.3;cursor:default}
+  .buy:not(:disabled):hover{background:#3a302c;border-color:#7a6a63}
+  .stats{display:flex;gap:16px;margin:0 0 10px;font-size:12px;color:#8d837c;flex-wrap:wrap}
+  .stats b{color:#e8e2d8;font-weight:500;font-variant-numeric:tabular-nums}
+  .close{margin-top:18px;background:#2a2422;border:1px solid #4a403c;border-radius:8px;
+    padding:9px 20px;font:inherit;font-size:13px;color:#e8e2d8;cursor:pointer}
+  .close:hover{background:#3a302c}
+  .tune{margin-top:16px;padding-top:14px;border-top:1px solid #2a2422;
+    display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:#8d837c;align-items:center}
+  .tune input{width:96px;vertical-align:middle}
+  .tune b{color:#e8e2d8;font-weight:500;font-variant-numeric:tabular-nums}
+  kbd{background:#2a2422;border:1px solid #4a403c;border-radius:4px;padding:1px 6px;font-size:11px}
+
+  /* Overrides live at the end on purpose: same specificity as the base rules above,
+     so they only win by source order. */
+  @media (pointer:coarse){
+    #altarBtn{display:block}
+    #hintKb{display:none}
+    #hintTouch{display:inline}
+  }
+  @media (max-width:760px){
+    #hud{font-size:11px;line-height:1.5;min-width:0;padding:7px 9px;max-width:48vw}
+    #gods{font-size:10px;line-height:1.6;min-width:0;padding:7px 9px;max-width:42vw}
+    .card{padding:16px 14px;border-radius:12px}
+    .screen{padding:10px}
+    h1{font-size:19px} h2{font-size:15px}
+    p.sub{font-size:12px;margin-bottom:14px}
+    .grid9{grid-template-columns:1fr;gap:7px;margin-bottom:12px}
+    .gbtn{padding:9px 11px;font-size:12px}
+    .gbtn .w,.gbtn .a{font-size:10px}
+    .altwrap{grid-template-columns:1fr;gap:12px}
+    #wheel{width:100%;height:auto;max-width:280px;display:block;margin:0 auto}
+    .row{grid-template-columns:1fr 44px 62px 54px;gap:5px;font-size:12px;padding:6px 3px}
+    .row .th{font-size:10px} .row .ct{font-size:11px}
+    .buy{font-size:11px;padding:7px 0}
+    .stats{gap:10px;font-size:11px}
+    .tune{gap:10px;font-size:11px} .tune input{width:80px}
+    .close{padding:11px 18px}
+  }
+</style>
+<link rel="stylesheet" href="revelations.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud" class="panel">
+  <div><b id="hTime">0:00</b> <span class="dim">— patron</span> <b id="hPatron">—</b></div>
+  <div id="hpbar"><div id="hpfill"></div></div>
+  <div><span class="dim">blood banked</span> <b id="hBlood">0</b> <span class="dim">tokens</span> <b id="hTok">0</b></div>
+  <div><span class="dim">the world</span> <b id="hWorld">100%</b> <span class="dim">coalition control</span> <b id="hShare">0%</b></div>
+  <div id="hCampaign" class="dim"></div>
+  <div id="hDefense" class="dim"></div>
+  <div><span class="dim">schism</span> <b id="hS">0.00</b> <span class="dim" id="hStand"></span></div>
+  <div><span class="dim">true heart</span> <b id="hHeart">—</b></div>
+  <div><span class="dim">hunting you</span> <span id="hHunt"></span></div>
+  <div><span class="dim">rival priests</span> <b id="hRival">0</b> <span class="dim">took</span> <b id="hRivalTaken">0</b></div>
+  <div><span class="dim">hosts</span> <span id="hHost"></span></div>
+  <div><span class="dim">location</span> <b id="hLocation">—</b></div>
+  <div><span class="dim">nearest rival camp</span> <b id="hJourney">—</b></div>
+  <div class="dim" style="margin-top:6px"><span id="hintKb"><kbd>space</kbd> altar &nbsp; <kbd>wasd</kbd> move · <kbd>F</kbd> challenge ally</span><span id="hintTouch">drag anywhere to move</span></div>
+</div>
+
+<div id="gods" class="panel"></div>
+<div id="toast"></div>
+<button id="altarBtn">altar</button>
+
+<div id="start" class="screen"><div class="card">
+  <h1>Choose who answers your prayer</h1>
+  <p class="sub">Choose a patron, your main armament, and either its companion weapon or a free revelation. Harvest a dying world, pledge to up to three gods, and shape a doctrine from sixteen revelations. In normal mode, your coalition must claim 45% of the world's blood and repel three desperation waves. Your allies stay loyal unless you deliberately challenge their seats. See the Codex for the full rules.</p>
+  <h2>Choose a patron</h2>
+  <div class="grid9" id="patronPick"></div>
+  <button class="close" id="randomPatron" style="margin-top:0">Draw at random</button>
+</div></div>
+
+<div id="altar" class="screen"><div class="card">
+  <h1>The altar</h1>
+  <p class="sub">Three gods. Sixteen revelations each. Choose an armament, commit to a doctrine at rank 4, then choose purity or metamorphosis at rank 12. Each choice shapes this run; deeper revelations cost more blood.</p>
+  <div class="altwrap">
+    <div><svg id="wheel" viewBox="0 0 340 340" width="340" height="340"></svg></div>
+    <div>
+      <div class="stats">
+        <span>banked <b id="aBlood">0</b></span>
+        <span>tokens <b id="aTok">0</b></span>
+        <span>schism <b id="aS">0.00</b></span>
+        <span>standing <b id="aStand">devout</b></span>
+        <span>true heart <b id="aHeart">—</b></span>
+      </div>
+      <div id="rows"></div>
+      <div class="tune">
+        <label>growth per favor <input type="range" id="tGrowth" min="1" max="1.2" step="0.005"> <b id="vGrowth"></b></label>
+        <label>tension k <input type="range" id="tK" min="0" max="3" step="0.1"> <b id="vK"></b></label>
+        <label>ring step <input type="range" id="tRing" min="0" max="0.5" step="0.05"> <b id="vRing"></b></label>
+      </div>
+      <button class="close" id="closeAltar">Bank it and continue &nbsp;<kbd>space</kbd></button>
+    </div>
+  </div>
+</div></div>
+
+<div id="dead" class="screen"><div class="card" style="max-width:540px">
+  <h1>You are spent</h1>
+  <p class="sub" id="deadTxt"></p>
+  <button class="close" onclick="location.reload()">Again</button>
+</div></div>
+
+<script src="world-assets.js"></script>
+<script src="world-navigation.js"></script>
+<script src="terrain.js"></script>
+<script src="campaign.js"></script>
+<script src="horde.js"></script>
+<script src="priests.js"></script>
+<script src="metamorphoses.js"></script>
+<script src="god-revelations.js"></script>
+<script src="build-effects.js"></script>
+<script src="player-stats.js"></script>
+<script src="revelations.js"></script>
+<script src="actor-art.js"></script>
+<script src="front-end.js"></script>
+<script>
+"use strict";
+
+// ---------------------------------------------------------------- tuning
+const CFG = {
+  // growth is per favor bought ANYWHERE. Measured over 20 min with damage off:
+  // +6% -> 64 of 72 favors, 8 gods maxed (wheel saturates by minute 15)
+  // +9% -> 49 of 72 favors, 6 gods maxed, 2 gods never touched
+  baseCost:12, growth:1.07, ringStep:0.25, schismK:1.0,
+  // A weapon is a pledge, not a purchase. The patron's is free; every other god's first
+  // threshold costs this multiple, unless you spend a token torn from a boss.
+  // Blood is deliberately abundant, so a blood-priced gate barely gates. pledgeNeedsToken
+  // makes the boss token the real key and the multiplier merely the price.
+  // Tokens escalate: the Nth god you pledge beyond your patron costs N of them. Flat
+  // token costs do not bind either, since bosses out-supply the nine gods.
+  pledgeMult:2.5, pledgeNeedsToken:false, pledgeTokenStep:1,
+  bossEvery:75, bossHpMult:34, bossRadius:34, bossBlood:25,
+  maxThreshold:16, splitAtLevel:8, maxPledges:3,
+  playerSpeed:196, playerHp:100, pickupBase:105, iframe:0.6,
+  // spawnBase/PerMin is now the WORLD'S appetite, shared by nine bases, not a ring around
+  // the player. enemyHpPerMin stays as a clock until breeding demonstrably replaces it.
+  spawnBase:1.7, spawnPerMin:1.9, enemyHpBase:9, enemyHpPerMin:7,
+  enemyDmgBase:6, enemyDmgPerMin:1.8, maxEnemies:400,
+  // Hunters and eaters have separate rooms. Measured with a shared cap and eviction: every
+  // hunter spawn unmade an eater, eaters lived ~17s, most never reached a town, and the
+  // world was eaten at a fifth of the rate its mouths implied. maxEnemies - maxHunters
+  // is the number of mouths the world always keeps.
+  maxHunters:220,
+  stickDead:14,
+
+  // ---- world ----
+  // The world is finite. Every unit of blood in a run starts in a settlement or in the
+  // seed each god brought with it. Servants are born hollow except for servantSeed, which
+  // is debited from their base, so a god that never eats runs dry and sends empty locusts.
+  // Set servantSeed to 0 for the pure hollow economy.
+  worldR:4600, baseRingR:5400, worldLimit:6500, townGap:1400, campTownGap:1100,
+  townCount:14, townMinP:400, townMaxP:2600, townR0:420,
+  baseSeed:150, servantSeed:1, breedK:1/900, spawnScale:1.35,
+  // A settlement bleeds townBleed blood/s per feeding mouth, saturating at townMouths mouths.
+  // townSpill of every bite falls to the ground as an orb wearing the feeder's mark, which
+  // the feeder's own god may not take back. The priest bleeds a town at townPlayerBleed/s
+  // just by standing in it, and every god feeding there notices.
+  // Measured at 1.8/mouth: a 12k world was 96% eaten by minute 4. At 0.3 with ~170 mouths
+  // a 21k world was 55% eaten by minute 22. 0.4 aims the whole world at roughly 25 minutes.
+  townBleed:0.4, townMouths:6, townSpill:0.35, townPlayerBleed:2.0,
+  // Terrain radius grows with the square root of the base's blood, so area tracks blood.
+  // Camps are now ~3700px apart. Influence scales with the larger world so
+  // fed factions can still meet and fight; combat ranges stay human-sized.
+  terrBase:330, terrK:48, terrBonusDmg:1.15, terrBonusSpd:1.10,
+  // A ground is 48 spokes, not a circle. Blood sets the MEAN radius; around it each spoke
+  // undulates by up to terrAmp on a slow three-frequency swell seeded per god, and flows toward
+  // its target at terrGrow px/s so growth is seen, not snapped. Where a spoke tip lies inside
+  // another ground the edge is contested: the side with more blood (ratio of blood + terrPushFloor)
+  // pushes its contested spokes out at terrPush px/s per unit of excess and the other side's in.
+  // The mean is held to blood, so a pusher's far side pulls in: contact focuses growth.
+  terrAmp:0.22, terrGrow:30, terrPush:18, terrPushFloor:120, terrMin:0.25, terrMax:2.0,
+  // War begins when two terrains share a border this long (px), by ring distance. Antipodes
+  // fight the moment they touch; allies tolerate a long border first. Wars never end.
+  warBorder:[Infinity,420,260,120,0],
+  warSense:280, mobDmgScale:0.22, mobReach:6, orbSense:140,
+  // A carrier past its gullet stops eating and walks its cargo home. Stage (size, HP,
+  // resistance) comes from chain DEPTH, the number of gods the carried blood has passed
+  // through, never from quantity: quantity only decides when it goes home.
+  gullet:[20,60,180], stageR:[9,14,20], stageHp:[1,2.2,4.2],
+  // Wrath in favors. hostileFloor of an angered god's servants hunt the priest at wrath>0,
+  // rising to all of them at wrathFull. Heat is field wrath: it rises when you kill a god's
+  // servants or bleed a town they are feeding on, and it cools. Altar wrath never cools.
+  // Measured at heatPerKill 0.05 / decay 0.03: a stationary priest turned every god whose eaters
+  // walked past into a hunter within four minutes, hostile gods stopped eating, and the world
+  // stalled at 16% eaten by minute 16. Heat is now a trace unless you farm one god on purpose,
+  // the patron forgives its own priest, and no god ever sends more than hostileCap of itself.
+  hostileFloor:0.35, hostileCap:0.85, wrathFull:8, heatPerKill:0.02, heatBleed:0.012, heatDecay:0.05, heatCap:4,
+  // Influence first. Only skirmishFrac of the hostile share hunts you as it is born; the rest
+  // eats. An angry god instead MUSTERS a host in reserve at musterBase + musterPerWrath per
+  // point of wrath per second, scaled by its breeding, and marches it all at once when it
+  // reaches hostBase + hostPerWrath × wrath, plus hostGrowth for every host it has sent before.
+  // The host is born over hostBurst seconds and marches hostSpeed faster, so it arrives as one.
+  // Hosts now arrive (horde.js: leaders, flanks, screen-edge entry), so they were cut from 10+5/wrath:
+  // a 55-body host at minute 1:40 killed a non-dodging rank-8 priest at 2:02.
+  skirmishFrac:0.3, musterBase:0.02, musterPerWrath:0.08, hostBase:8, hostPerWrath:4, hostGrowth:4,
+  hostBurst:2.0, hostSpeed:1.15, hostWarnAt:0.7,
+  // Blood does not follow you home. Fresh single-mark orbs crawl toward you inside
+  // leashMult pickup radii; anything already absorbed once must be walked to. 0 = no leash.
+  leashMult:3, orbCap:900, chainMult:1.1,
+  // Blood off the ground is also what the priest drinks: each unit harvested from an orb heals
+  // bloodHeal. A town's slow bleed does not. Added when packs began to land: a god without
+  // Hueilei's lifesteal had 100 health and no way back.
+  bloodHeal:0.4,
+  // Fresh blood lies untouched this long before a servant may take it, so a kill inside your
+  // reach is yours: the pull wins the race it would otherwise lose to whoever stood closest.
+  orbAbsorbDelay:0.6,
+  // Deep favor tithes the enemy: from titheFrom up, every threshold in a god adds tithePer to
+  // blood you harvest that wears one of that god's antipodes' marks. Value in the back half
+  // of the ladder, paid by the factions your depth angers.
+  titheFrom:5, tithePer:0.125,
+  // A hunter of a god angrier than this goes straight for you; below it, it fights its god's
+  // war first when the war is within sense.
+  warFirstBelow:4,
+  // Blood no god can take gathers itself: orbs this deep merge with each other within ripeMergeR.
+  ripeDepth:3, ripeMergeR:48,
+  // Rival priests are the larger thing. One bleeds towns into a bank no mask bounds, prays a
+  // wound onto where you stand within prayRange every prayCd seconds, and when it dies the
+  // bank goes home to its god. Only a bounty and a token come out of it.
+  priestBleed:2.0, prayCd:3.0, prayR:78, prayDmg:2.2, prayRange:260,
+  // Measured uncapped: eight priests alive by minute ten had taken a quarter of the world.
+  // There are many priests; only this many are in the world at once. The next waits its turn.
+  maxPriests:3,
+  // Seats can be broken. A seat stands in the world as a body every weapon can reach (never
+  // your patron's), with seatHpBase plus seatHpPerBlood per blood it holds, healing seatRegen
+  // of its max per second once nothing has struck it for seatRegenDelay. Breaking one casts
+  // the god out: its hoard spills where it stood in seatSpillChunks marked orbs, its servants
+  // turn on you, and every ally or cousin of it not already at war with it rises to seatSpike
+  // wrath (cousins at 0.6 of it), cooling at spikeDecay per second.
+  // Measured at base 500: a threshold-8 Blood debt broke a fresh 150-blood seat in nine seconds.
+  seatR:40, seatHpBase:800, seatHpPerBlood:1.0, seatRegen:0.004, seatRegenDelay:4,
+  seatSpillChunks:60, seatSpike:8, spikeDecay:0.012,
+  // Striking a seat is your hand. While a seat's hurt timer runs it heats its god by seatHeat per
+  // second, and every seatRecallT it calls that god's servants within seatRecallR home to hunt you.
+  // What the hoard does when the seat breaks: "leaves" (the cast-out swarm takes what it ate to the
+  // next world; counted as departed so the ledger still closes), "spills" (marked orbs where it
+  // stood), or "inherit" (split among surviving gods at ring distance <=2, allies weighted double).
+  seatHeat:0.25, seatRecallR:520, seatRecallT:0.5, seatHoard:"leaves",
+  // Only your hand breaks a seat, so seats broken is what your patron has watched you do. Each adds
+  // heresyWrath to the patron's wrath AFTER devotion, so no depth of favor absorbs it; at one point
+  // per seat the eighth lands exactly on wrathFull. When the last rival seat falls, every living
+  // servant of the patron turns at once: a swarm with no rivals has no use for a priest.
+  heresyWrath:1,
+
+  // ---- conditions ----
+  // burn: high intensity, short. rad: moderate, slow, long. bleed: floor rate that the
+  // target's own movement multiplies. dis: ticks and self-consumes, detonates on what's left.
+  burnDps:9.0,  burnLife:2.2,
+  radDps:2.2,   radLife:9.0,  radSlowPer:0.055,
+  bleedDps:3.4, bleedLife:6.0, bleedFloor:0.4,
+  disDps:1.5,   disDecay:0.55, disBlast:4.5,
+  slowCap:0.55,                  // ONE pool, radiation is the only source
+  unfoldShred:0.09, resTrash:0.08, resBig:0.50,
+  // infested is inert. On death it throws shrapnel carrying a slice of the corpse's other
+  // conditions — small at 1 stack (harassment), meaningful when the host is well infested.
+  infLife:5.0, infShots:4, infDmg:6,
+  infCarryPerStack:0.09, infCarryCap:0.6, infGenCap:2, infShotsPerFrame:90,
+  // a whispered enemy fights like the player does: one free half-blow on engaging,
+  // then an even trade every tick, taking damage from everything it touches
+  // Reach is measured centre-to-centre. Body contact (26) leaves a whispered enemy idle 74%
+  // of the time because a fleeing player keeps the horde sparse and moving in parallel.
+  // Measured mean contacts by reach: 26->0.28, 40->0.46, 55->0.67, 70->0.83, 90->1.04, 120->1.40
+  whisperOpening:0.5, whisperTickCd:0.5, whisperReach:70, whisperSeek:"nearest",
+  locustPolicy:"burst",     // "burst" | "spray" (spray = the old nearest-plus-random volley)
+  locustRange:520, locustReach:350,
+  // Measured: burst targeting is 2.24x the kills per shot of spray (hit rate 0.73 vs 0.34).
+  // 0.55 gives most of that back, leaving the god a little stronger than the old broken
+  // version rather than twice as strong. 1.0 if you want the full gain.
+  locustDmgScale:0.55,
+  minionPolicy:"cluster",   // "cluster" | "nearest" | "random"
+  minionSpeed:168, minionSearchR:620, minionDecay:0.5, minionRetargets:2,
+  // With real separation, cluster targeting catches 2.09 bodies per blast vs 1.18 for nearest
+  // (1.77x). dmgScale claws that back so the smarter AI is a quality change, not a power spike.
+  // Set to 1.0 if you'd rather the Ossuary just got stronger.
+  minionArm:0.35, minionDmgScale:0.6,
+};
+
+// ---------------------------------------------------------------- gods
+// only Gwulhorlw, Hueilei and Ik'Thel'The are named for real; the rest are working titles
+const GODS = [
+  {i:0,name:"Gwulhorlw",        wt:0,col:"#7a9a3f",weapon:"Rotting presence",arche:"passive / aura",     base:"a seeping, pulsing wound",   glyph:"wound"},
+  {i:1,name:"The Bottomless",   wt:1,col:"#b8447a",weapon:"Covetous whisper",arche:"passive / contagion",base:"a woman in black tentacles", glyph:"statue"},
+  {i:2,name:"The Ninth Swarm",  wt:1,col:"#c98a2b",weapon:"Devouring flight",arche:"swarm / consume",    base:"a sphere of locusts",        glyph:"sphere"},
+  {i:3,name:"Hueilei",          wt:0,col:"#b23a34",weapon:"Blood debt",      arche:"melee / sustain",    base:"a blood-soaked arena",       glyph:"arena"},
+  {i:4,name:"The Cinder Jarl",  wt:1,col:"#e0662a",weapon:"Cinderswing",     arche:"melee / scorch",     base:"a colossal flaming sword",   glyph:"sword"},
+  {i:5,name:"The Woken Star",   wt:1,col:"#d9c05a",weapon:"Gravity well",    arche:"ranged / heat",      base:"a shrine to the sun",        glyph:"sun"},
+  {i:6,name:"Ik'Thel'The",      wt:0,col:"#5ab5c9",weapon:"Unfold",          arche:"ranged / geometry",  base:"a strange geometric object", glyph:"geo"},
+  {i:7,name:"First Blasphemy",  wt:1,col:"#8a6fc4",weapon:"Anti-sigil",      arche:"ranged / placed",    base:"an obelisk, written on",     glyph:"obelisk"},
+  {i:8,name:"The Pale Ossuary", wt:1,col:"#8a97a8",weapon:"Carrion rite",    arche:"passive / minions",  base:"a bone tower",               glyph:"tower"},
+];
+// Hostility kernel by ring distance. One table for everything: which gods send servants at
+// the priest (rule 1) and how eager two terrains are to go to war (rule 7). A god counts its
+// own favors against its anger, so the patron never hunts you unless you heat it yourself.
+const HOST_K=[-1,0,0,0.5,1];
+// the two antipodes of each god, as a mask: what its tithe is levied on
+const ANTI=[0,1,2,3,4,5,6,7,8].map(g=>(1<<((g+4)%9))|(1<<((g+5)%9)));
+// desaturated body colour for servants that are not hunting you: "bright means mine to fear"
+const GOD_DIM=GODS.map(g=>mixHex(g.col,"#59322e",0.58));
+function mixHex(a,b,t){
+  const A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16);
+  const r=(A>>16)+(((B>>16)-(A>>16))*t), g=((A>>8)&255)+((((B>>8)&255)-((A>>8)&255))*t), bl=(A&255)+(((B&255)-(A&255))*t);
+  return "#"+[r,g,bl].map(v=>Math.round(v).toString(16).padStart(2,"0")).join("");
+}
+function popcount(m){let c=0;while(m){m&=m-1;c++;}return c;}
+const COND_VIS=[
+  {k:"dis",  col:"#7a9a3f",a0:-1.9,a1:-0.6},
+  {k:"burn", col:"#e0662a",a0:-0.5,a1:0.8},
+  {k:"bleed",col:"#b23a34",a0:0.9,a1:2.2},
+  {k:"rad",  col:"#d9c05a",a0:2.3,a1:3.6},
+  {k:"inf",  col:"#c98a2b",a0:3.7,a1:5.0},
+];
+// damage a whispered enemy deals to EACH target, by how many it is touching
+const WHISPER_SPLIT=[0,1.00,0.85,0.75,0.66,0.50];
+const whisperHits=[];
+// Offer pool. Each tier-up draws up to three eligible cards from the god you fed.
+// `req` reads the whole portfolio, so cross-god cards only surface once they would work.
+// SCAFFOLDING CONTENT — the voice and the effects are placeholders to build on.
+function owns(i){return S.thresholds[i]>0;}
+function anyApplier(){return owns(0)||owns(3)||owns(4)||owns(5);}
+const CARDS=[
+ // 0 Gwulhorlw — aura, disease
+ [{id:"0a",n:"Wider miasma",t:"+30% aura radius",min:2,ap:m=>m.area*=1.3},
+  {id:"0b",n:"Thicker air",t:"+35% aura damage",min:2,ap:m=>m.dmg*=1.35},
+  {id:"0c",n:"Patient rot",t:"Disease decays 40% slower",min:3,ap:()=>CFG.disDecay*=0.6},
+  {id:"0d",n:"Burst pustule",t:"+60% disease detonation damage",min:4,ap:()=>CFG.disBlast*=1.6},
+  {id:"0e",n:"Fevered carriers",t:"+50% condition transfer per infested stack",min:3,
+   req:()=>owns(2),ap:()=>CFG.infCarryPerStack*=1.5}],
+ // 1 The Bottomless — whisper
+ [{id:"1a",n:"Longer covetting",t:"+25% whispered strike reach",min:2,ap:()=>CFG.whisperReach*=1.25},
+  {id:"1b",n:"Eager hands",t:"Whispered enemies strike 33% more often",min:2,ap:()=>CFG.whisperTickCd*=0.75},
+  {id:"1c",n:"First betrayal",t:"Opening blow deals full damage, not half",min:3,ap:()=>CFG.whisperOpening=1.0},
+  {id:"1d",n:"Faster whisper",t:"Turn an enemy 25% more often",min:3,ap:m=>m.cd*=0.75},
+  {id:"1e",n:"Shared affliction",t:"Whispered strikes pass on 25% of their own conditions",min:4,
+   req:anyApplier,ap:m=>m.f.spread=1}],
+ // 2 The Ninth Swarm — infested
+ [{id:"2a",n:"Denser flight",t:"+2 projectiles per volley",min:2,ap:m=>m.count+=2},
+  {id:"2b",n:"Sharper mandibles",t:"+40% projectile damage",min:2,ap:m=>m.dmg*=1.4},
+  {id:"2c",n:"Longer hunger",t:"Infested lasts 50% longer",min:3,ap:()=>CFG.infLife*=1.5},
+  {id:"2d",n:"Heavier shrapnel",t:"Condition transfer cap 60% to 85%",min:3,
+   req:anyApplier,ap:()=>CFG.infCarryCap=Math.min(0.95,CFG.infCarryCap+0.25)},
+  {id:"2e",n:"Third generation",t:"Infestation chains one generation further",min:5,ap:()=>CFG.infGenCap+=1}],
+ // 3 Hueilei — bleed, melee
+ [{id:"3a",n:"Wider swing",t:"+30% swing radius",min:2,ap:m=>m.area*=1.3},
+  {id:"3b",n:"Deeper cut",t:"+45% bleed damage",min:2,ap:()=>CFG.bleedDps*=1.45},
+  {id:"3c",n:"Standing wound",t:"Bleed on still enemies 40% to 70% rate",min:3,ap:()=>CFG.bleedFloor=0.7},
+  {id:"3d",n:"Blood tithe",t:"Heal 1.2 per enemy hit, up from 0.55",min:3,ap:m=>m.f.heal=1},
+  {id:"3e",n:"War without end",t:"Up to +60% swing damage, scaling with schism",min:4,ap:m=>m.f.schism=1}],
+ // 4 The Cinder Jarl — burn
+ [{id:"4a",n:"Hotter cinders",t:"+50% burn damage",min:2,ap:()=>CFG.burnDps*=1.5},
+  {id:"4b",n:"Longer embers",t:"Burn lasts 50% longer",min:2,ap:()=>CFG.burnLife*=1.5},
+  {id:"4c",n:"Broader arc",t:"+30% swing radius",min:3,ap:m=>m.area*=1.3},
+  {id:"4d",n:"Scorched ground",t:"+2 fire patches per swing",min:3,ap:m=>m.count+=2},
+  {id:"4e",n:"Kindling",t:"+50% swing damage",min:4,req:()=>owns(0),ap:m=>m.dmg*=1.5}],
+ // 5 The Woken Star — radiation
+ [{id:"5a",n:"Denser core",t:"+40% impact damage",min:2,ap:m=>m.dmg*=1.4},
+  {id:"5b",n:"Wider fall",t:"+35% impact radius",min:2,ap:m=>m.area*=1.35},
+  {id:"5c",n:"Long half-life",t:"Radiation lasts 50% longer",min:3,ap:()=>CFG.radLife*=1.5},
+  {id:"5d",n:"Heavier drag",t:"+40% slow per radiation stack, 55% cap",min:3,ap:()=>CFG.radSlowPer*=1.4},
+  {id:"5e",n:"Second wormhole",t:"Impacts 35% more often",min:5,ap:m=>m.cd*=0.65},
+  {id:"5f",n:"Long fall",t:"+25% pickup radius",min:3,ap:m=>m.f.reach=1}],
+ // 6 Ik'Thel'The — unfolding
+ [{id:"6a",n:"Longer ray",t:"+35% ray length",min:2,ap:m=>m.area*=1.35},
+  {id:"6b",n:"Cleaner pierce",t:"+40% ray damage",min:2,ap:m=>m.dmg*=1.4},
+  {id:"6c",n:"Deeper unfolding",t:"+60% resistance shred per unfolding stack",min:3,
+   req:anyApplier,ap:()=>CFG.unfoldShred*=1.6},
+  {id:"6d",n:"Shorter interval",t:"Fires 30% more often",min:3,ap:m=>m.cd*=0.7},
+  {id:"6e",n:"Early split",t:"Fibonacci splits unlock at threshold 5, not 8",min:5,ap:()=>CFG.splitAtLevel=5},
+  {id:"6f",n:"Folded distance",t:"+25% pickup radius",min:3,ap:m=>m.f.reach=1}],
+ // 7 First Blasphemy — sigils
+ [{id:"7a",n:"Louder sigil",t:"+35% sigil radius",min:2,ap:m=>m.area*=1.35},
+  {id:"7b",n:"Fouler word",t:"+45% sigil blast damage",min:2,ap:m=>m.dmg*=1.45},
+  {id:"7c",n:"More glyphs",t:"+2 active sigils",min:3,ap:m=>m.count+=2},
+  {id:"7d",n:"Faster writing",t:"Places sigils 30% faster",min:3,ap:m=>m.cd*=0.7},
+  {id:"7e",n:"Unnaming",t:"Sigil blasts permanently strip condition resistance",min:4,ap:m=>m.f.strip=1}],
+ // 8 The Pale Ossuary — minions
+ [{id:"8a",n:"Fuller ossuary",t:"Raises minions 30% faster",min:2,ap:m=>m.cd*=0.7},
+  {id:"8b",n:"Heavier bones",t:"+45% detonation damage",min:2,ap:m=>m.dmg*=1.45},
+  {id:"8c",n:"Wider grave",t:"+35% blast radius",min:3,ap:m=>m.area*=1.35},
+  {id:"8d",n:"Longer walk",t:"+40% minion search range",min:3,ap:()=>CFG.minionSearchR*=1.4},
+  {id:"8e",n:"Grave-borne plague",t:"Minion blasts apply 4 disease stacks",min:4,
+   req:()=>owns(0),ap:m=>m.f.carry=1}],
+];
+function drawOffer(g){
+  const eligible=CARDS[g].filter(c=>!S.taken[c.id]&&S.thresholds[g]>=c.min&&(!c.req||c.req())&&(!c.branch||!S.gmod[g].f[c.branch]));
+  const milestone=S.thresholds[g]===4?"doctrine":S.thresholds[g]===12?"apex":null;
+  const pool=milestone?eligible.filter(c=>c.branch===milestone):eligible;
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=pool[i];pool[i]=pool[j];pool[j]=t;}
+  return pool.slice(0,3);
+}
+function takeCard(g,c){
+  if(!S.offer||S.offerGod!==g||!S.offer.includes(c)||S.taken[c.id])return;
+  S.taken[c.id]=1;
+  c.ap(S.gmod[g]);
+  recalcPassives();
+  S.offer=null; S.offerGod=-1;S.offerKind=null;
+  toast(GODS[g].name+" — "+c.n+".");
+  drawAltar();
+}
+const PASSIVE_AT = 4;
+const PASSIVE_TXT = ["+10% max health","+15% pickup radius","+8% move speed","+0.5 health per second",
+  "+12% damage","+15% effect area","+7% speed and longer mercy","+12% faster favors","minions strike harder"];
+
+// ---------------------------------------------------------------- state
+const cv=document.getElementById("c"), cx=cv.getContext("2d");
+let W=0,H=0;
+function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight;}
+// Keep at least 720 world units across the short edge on phones and tablets.
+function cameraZoom(){return matchMedia('(pointer:coarse)').matches||W<=760?Math.min(1,Math.min(W,H)/720):1;}
+addEventListener("resize",resize);resize();
+
+let S=null;
+const RUN_DEFAULTS={...CFG};
+function newGame(patron,world=0,worldLevel=1,heretic=false,extermination=false,armament=0,patronGift=null){
+  Object.assign(CFG,RUN_DEFAULTS);
+  S={
+    mode:"play", t:0, patron, blood:0, spent:0, kills:0, bought:0, tokens:0, bossN:0, bossAlive:0,
+    dualPatron:patronGift==='dual',secondaryCd:Array(9).fill(0),
+    thresholds:new Array(9).fill(0), invested:new Array(9).fill(0),
+    world,worldLevel:Math.max(1,Math.min(20,worldLevel)),heretic,extermination:extermination||heretic,
+    betrayed:Array(9).fill(false),allyAttacks:Array.from({length:9},()=>({count:0,last:-99})),
+    groups:coalitionGroups(patron),rawBank:0,offered:Array(9).fill(0),finale:null,
+    px:0, py:0, hp:CFG.playerHp, maxHp:CFG.playerHp, inv:0, wordT:0, auraTick:0,
+    enemies:[], orbs:[], shots:[], rays:[], fields:[], sigils:[], minions:[], fx:[],
+    cd:new Array(9).fill(0), spawnAccG:new Array(9).fill(0), aim:{x:1,y:0}, infBudget:0,
+    gmod:Array.from({length:9},()=>({dmg:1,area:1,cd:1,count:0,arm:0,f:{}})),
+    taken:{}, offer:null, offerGod:-1,
+    stat:{speed:1,dmg:1,area:1,pickup:1,regen:0,iframe:CFG.iframe,cdr:1},
+    // world
+    bases:[], towns:[], war:Array.from({length:9},()=>new Array(9).fill(false)),
+    heat:new Array(9).fill(0), harvested:0, world0:0, warT:0, eaten:false, nearOrb:false, hunters:0,
+    inc:{town:0,orb:0,chain:0,tithe:0}, rivalTaken:0, logT:0, spike:new Array(9).fill(0),
+    heresy:0, departed:0, forsaken:false,
+    muster:new Array(9).fill(0), hostQueue:new Array(9).fill(0), hostSize:new Array(9).fill(0),
+    hostAcc:new Array(9).fill(0), hostN:new Array(9).fill(0), warned:new Array(9).fill(false),
+    byGod:Array.from({length:9},()=>[]),
+  };
+  S.enemyPower=1+(S.worldLevel-1)*.25;
+  hordeInit();priestsInit();
+  S.thresholds[heretic?6:patron]=1; // Heretics begin with a stolen void weapon, not a patron.
+  S.gmod[heretic?6:patron].arm=armament;
+  genWorld(patron);
+  S.terrain=WorldTerrain.create(S.towns,S.bases,undefined,WORLD_TYPES[world].biomes);
+  {const p=WorldNavigation.nearest(S.terrain,S.px,S.py,11);S.px=p.x;S.py=p.y;}
+  recalcPassives();
+  document.getElementById("titleScreen").classList.remove("on");
+  document.getElementById("dead").classList.remove("on");
+  document.getElementById("start").classList.remove("on");
+  document.getElementById("hPatron").textContent=heretic?'Heretic':GODS[patron].name;
+  toast(heretic?'No patron. No allies. Destroy all nine seats.':GODS[patron].name+" accepts your first prayer. "+(S.extermination?'Destroy eight rivals, then face your patron.':'Your coalition must claim 45% of this world.'));
+  document.getElementById('playerStats').classList.remove('on');
+  document.getElementById('altar').classList.remove('on');
+  if(patronGift==='blessing'){
+    const g=heretic?6:patron,pool=CARDS[g].filter(c=>c.min<=2&&!c.branch&&(!c.req||c.req()));
+    for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+    S.offer=pool.slice(0,3);S.offerGod=g;S.offerKind="gift";openAltar();
+  }
+
+}
+
+// ---------------------------------------------------------------- world
+// Nine seats on a ring in a random order, so which gods are neighbours is a fact about this
+// run. Settlements scattered inside; the priest wakes at the patron's seat.
+function terrR(B){return CFG.terrBase+CFG.terrK*Math.sqrt(Math.max(0,B));}
+function genWorld(patron){
+  const order=[0,1,2,3,4,5,6,7,8];
+  for(let i=8;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=order[i];order[i]=order[j];order[j]=t;}
+  S.bases=new Array(9);
+  order.forEach((g,k)=>{
+    const a=k*2*Math.PI/9+rnd(-0.05,0.05), R=CFG.baseRingR*rnd(0.96,1.04);
+    S.bases[g]={g:g,x:Math.cos(a)*R,y:Math.sin(a)*R,B:CFG.baseSeed,r:terrR(CFG.baseSeed),pulse:Math.random()*6.283,warAny:false,
+      spokes:new Float32Array(TN),push:new Float32Array(TN),contested:new Uint8Array(TN),phase:Math.random()*100,rmax:0};
+    const b=S.bases[g];
+    for(let k=0;k<TN;k++)b.spokes[k]=b.r*(1+CFG.terrAmp*swell(b,k*TSTEP,0));
+    b.rmax=b.r*(1+CFG.terrAmp);
+  });
+  S.towns=[];
+  const townNames=['Bellwether','Mournfield','Ashford','Hollow Cross','Wickstead','Grey Orchard','Saint\'s Rest',
+    'Thornmarket','Low Lantern','Blackwater','Old Barrow','Tallow End','Briar Fold','Last Hearth'];
+  function addTown(x,y){
+    // Equal home catchments anchor the idle balance; central towns are smaller prizes.
+    const P=S.towns.length<9?1500:CFG.townMinP;
+    const pts=[];
+    // Twelve occupied lots surround an open crossroads and market square.
+    for(let row=0;row<4;row++)for(let col=0;col<4;col++){
+      if((row===1||row===2)&&(col===1||col===2))continue;
+      pts.push({x:(col-1.5)*160,y:(row-1.5)*140,w:112,h:120,style:Math.floor(Math.random()*4)});
+    }
+    S.towns.push({name:townNames[S.towns.length]||'Outlying village',x,y,P0:P,P,r:CFG.townR0,pts,spill:0,mouths:[],fedBy:0});
+  }
+  // Every faction starts with a finite nearby supply. Enlarging the world alone
+  // would strand mouths in transit and prevent unattended camps from growing.
+  for(const b of S.bases){
+    const radius=Math.hypot(b.x,b.y), f=(radius-CFG.campTownGap)/radius;
+    addTown(b.x*f,b.y*f);
+  }
+  let tries=0;
+  while(S.towns.length<CFG.townCount&&tries++<4000){
+    const a=Math.random()*6.283, d=Math.sqrt(Math.random())*CFG.worldR;
+    const x=Math.cos(a)*d, y=Math.sin(a)*d;
+    let ok=true;
+    for(const b of S.bases)if(dist2(x,y,b.x,b.y)<CFG.campTownGap**2){ok=false;break;}
+    if(ok)for(const t of S.towns)if(dist2(x,y,t.x,t.y)<CFG.townGap**2){ok=false;break;}
+    if(!ok)continue;
+    addTown(x,y);
+  }
+  S.world0=S.towns.reduce((s,t)=>s+t.P0,0)+9*CFG.baseSeed;
+  // the seats stand in the world as bodies your weapons can reach; your patron's is not yours to break
+  for(const b of S.bases){
+    b.broken=false; b.ent=null;
+    const e=servant(b.g,b.x,b.y,"seat",CFG.seatHpBase+CFG.seatHpPerBlood*b.B,CFG.seatR,0,0);
+    e.seat=true; e.base=b; e.big=true; e.res=CFG.resBig; e.hurtT=0;
+    S.enemies.push(e); b.ent=e;
+  }
+  const pb=S.bases[patron], pa=Math.atan2(-pb.y,-pb.x);
+  S.px=pb.x+Math.cos(pa)*140; S.py=pb.y+Math.sin(pa)*140;
+  if(S.heretic)S.px=S.py=0;
+}
+function worldLeft(){let s=0;for(const t of S.towns)s+=t.P;return s;}
+function worldLeft0(){return S.world0-9*CFG.baseSeed;}
+
+// ---- wrath ----
+// A spike (a broken friend's seat) is added before the floor, so a patron you are deep in can
+// absorb it with your devotion; a patron you barely favor cannot.
+function wrathRaw(g){let w=0;for(let h=0;h<9;h++)w+=S.thresholds[h]*HOST_K[ringDist(g,h)];return w;}
+// Heresy is the patron's alone: seats you broke, added after devotion so nothing absorbs it.
+function heresyWrath(g){return S.extermination&&!S.heretic&&g===S.patron?S.heresy*CFG.heresyWrath:0;}
+function wrathAltar(g){if(alliedGod(g))return 0;return Math.max(0,wrathRaw(g)+S.spike[g])+heresyWrath(g);}
+function wrathOf(g){return alliedGod(g)?0:wrathAltar(g)+S.heat[g];}
+// Altar wrath opens at the floor and climbs; heat alone ramps gently from nothing, so a few
+// of your own god's eaters caught in the aura is a trace, and a massacre is a message.
+function hostileFrac(g){
+  if(S.extermination)return g===S.patron&&!S.heretic&&!S.forsaken?0:1;
+  if(alliedGod(g))return 0;
+  if(S.eaten)return 1;
+  const wa=wrathAltar(g), h=g===S.patron?0:S.heat[g];
+  let f=wa>0?CFG.hostileFloor+(1-CFG.hostileFloor)*Math.min(1,wa/CFG.wrathFull):0;
+  f+=(1-f)*Math.min(1,h/CFG.heatCap)*0.5;
+  return Math.min(CFG.hostileCap,f);
+}
+function hunterNames(){
+  const n=[];for(let g=0;g<9;g++)if(hostileFrac(g)>0)n.push(GODS[g].name);
+  return n.length?n.join(", "):"No one";
+}
+function addHeat(g,amt){S.heat[g]=Math.min(CFG.heatCap,S.heat[g]+amt);}
+// Deep favor tithes the enemy: blood wearing the mark of one of god g's antipodes pays more
+// for every threshold g holds from titheFrom up.
+function tithe(mask){
+  let t=1;
+  for(let g=0;g<9;g++){const L=S.thresholds[g];if(L>=CFG.titheFrom&&(mask&ANTI[g]))t+=CFG.tithePer*(L-CFG.titheFrom+1);}
+  return t;
+}
+// ---- the shape of a ground ----
+const TN=48, TSTEP=2*Math.PI/TN;
+function swell(b,ang,t){                         // slow, lobed, seeded per god; in [-1,1]
+  return 0.5*Math.sin(3*ang+t*0.13+b.phase)+0.3*Math.sin(7*ang-t*0.21+b.phase*2)+0.2*Math.sin(11*ang+t*0.07+b.phase*3);
+}
+function terrAt(b,ang){                          // the ground's radius in a direction
+  if(b.broken)return 0;
+  let a=ang/TSTEP; a=((a%TN)+TN)%TN;
+  const i=Math.floor(a), f=a-i, j=(i+1)%TN;
+  return b.spokes[i]*(1-f)+b.spokes[j]*f;
+}
+function inGround(b,x,y){
+  if(b.broken)return false;
+  const dx=x-b.x, dy=y-b.y, d2=dx*dx+dy*dy;
+  if(d2>b.rmax*b.rmax)return false;
+  const r=terrAt(b,Math.atan2(dy,dx)); return d2<r*r;
+}
+function inOwnTerrain(e){return inGround(S.bases[e.god],e.x,e.y);}
+function groundPath(b,scale,ox,oy){              // a smooth closed curve through the spoke tips
+  cx.beginPath();
+  const px=k=>ox+(b.x+Math.cos((k%TN)*TSTEP)*b.spokes[k%TN])*scale, py=k=>oy+(b.y+Math.sin((k%TN)*TSTEP)*b.spokes[k%TN])*scale;
+  cx.moveTo((px(0)+px(1))/2,(py(0)+py(1))/2);
+  for(let k=1;k<=TN;k++)cx.quadraticCurveTo(px(k),py(k),(px(k)+px(k+1))/2,(py(k)+py(k+1))/2);
+  cx.closePath();
+}
+
+// ---- terrain and war ----
+// Twice a second: find every contested edge, let the stronger side push, then let each ground
+// flow toward its swell with the mean held to its blood. War begins where the contested arc is
+// long enough for the pair's ring distance; antipodes at any contact at all.
+function terrainTick(dt){
+  const t=S.t;
+  for(const b of S.bases){b.warAny=false;b.contested.fill(0);}
+  const pushNow=S.bases.map(()=>new Float32Array(TN));
+  for(let g=0;g<9;g++)for(let h=g+1;h<9;h++){
+    const A=S.bases[g],Bb=S.bases[h];
+    if(A.broken||Bb.broken)continue;
+    if(!S.extermination&&S.groups.some(gs=>gs.includes(g)&&gs.includes(h))){S.war[g][h]=S.war[h][g]=false;continue;}
+    if(S.war[g][h])A.warAny=Bb.warAny=true;
+    if(Math.hypot(A.x-Bb.x,A.y-Bb.y)>A.rmax+Bb.rmax)continue;
+    let ca=0,cb=0;
+    for(let k=0;k<TN;k++){
+      const ang=k*TSTEP;
+      if(inGround(Bb,A.x+Math.cos(ang)*A.spokes[k],A.y+Math.sin(ang)*A.spokes[k])){ca++;A.contested[k]=1;}
+      if(inGround(A,Bb.x+Math.cos(ang)*Bb.spokes[k],Bb.y+Math.sin(ang)*Bb.spokes[k])){cb++;Bb.contested[k]=1;}
+    }
+    if(!ca&&!cb)continue;
+    const ratio=(A.B+CFG.terrPushFloor)/(Bb.B+CFG.terrPushFloor);
+    const pa=CFG.terrPush*Math.min(3,Math.max(0,ratio-1)), pb=CFG.terrPush*Math.min(3,Math.max(0,1/ratio-1));
+    for(let k=0;k<TN;k++){
+      const ang=k*TSTEP;
+      if(inGround(Bb,A.x+Math.cos(ang)*A.spokes[k],A.y+Math.sin(ang)*A.spokes[k]))pushNow[g][k]+=pa-pb;
+      if(inGround(A,Bb.x+Math.cos(ang)*Bb.spokes[k],Bb.y+Math.sin(ang)*Bb.spokes[k]))pushNow[h][k]+=pb-pa;
+    }
+    const L=Math.max(ca*6.283*A.r/TN, cb*6.283*Bb.r/TN);     // the longer contested arc
+    if(!S.war[g][h]&&L>=CFG.warBorder[ringDist(g,h)]){
+      S.war[g][h]=S.war[h][g]=true; A.warAny=Bb.warAny=true;
+      toast(GODS[g].name+" and "+GODS[h].name+" are at war.");
+    }
+  }
+  for(let g=0;g<9;g++){
+    const b=S.bases[g];
+    if(b.broken){b.spokes.fill(0);b.r=0;b.rmax=0;continue;}
+    const R=terrR(b.B), step=CFG.terrGrow*dt;
+    let sum=0;
+    for(let k=0;k<TN;k++){
+      b.push[k]=Math.max(-0.8*R,Math.min(1.2*R,(b.push[k]+pushNow[g][k]*dt)*0.985));
+      const target=R*(1+CFG.terrAmp*swell(b,k*TSTEP,t))+b.push[k];
+      const r=b.spokes[k], d=target-r;
+      b.spokes[k]=r+Math.max(-step,Math.min(step,d));
+    }
+    const prev=Float32Array.from(b.spokes);           // smooth: no spikes, only lobes
+    for(let k=0;k<TN;k++){
+      b.spokes[k]=0.25*prev[(k+TN-1)%TN]+0.5*prev[k]+0.25*prev[(k+1)%TN];
+      sum+=b.spokes[k];
+    }
+    const scale=R/(sum/TN); let mx=0;                 // hold the mean to the blood: a pushed side costs the far side
+    for(let k=0;k<TN;k++){
+      b.spokes[k]=Math.max(CFG.terrMin*R,Math.min(CFG.terrMax*R,b.spokes[k]*scale));
+      if(b.spokes[k]>mx)mx=b.spokes[k];
+    }
+    b.r=R; b.rmax=mx;
+  }
+}
+
+// ---------------------------------------------------------------- economy
+function ringDist(i,p){const d=Math.abs(i-p);return Math.min(d,9-d);}
+function schism(){
+  let T=0,dx=0,dy=0;
+  for(let i=0;i<9;i++){const a=i*2*Math.PI/9,b=S.invested[i];T+=b;dx+=b*Math.cos(a);dy+=b*Math.sin(a);}
+  if(T<=0)return{S:0,heart:S.patron,T:0};
+  const R=Math.hypot(dx,dy)/T;
+  let h=Math.round(Math.atan2(dy,dx)/(2*Math.PI/9));h=((h%9)+9)%9;
+  return {S:1-R,heart:h,T:T};
+}
+function costOf(i){
+  const sc=schism();
+  // Global escalation: every favor bought anywhere raises the base for everything.
+  // Depth and breadth now cost the same at the base — only the wheel separates them.
+  const base=CFG.baseCost*Math.pow(CFG.growth,S.bought);
+  const ring=S.heretic?1:1+CFG.ringStep*ringDist(i,S.patron);
+  const pledge=(S.thresholds[i]===0)?CFG.pledgeMult:1;
+  const share=sc.T>0?S.invested[i]/sc.T:0;
+  const prem=1+CFG.schismK*sc.S*(1-share);
+  return Math.ceil(base*ring*prem*pledge*Math.pow(1.22,Math.max(0,S.thresholds[i]-5)));
+}
+function standing(s){return s<0.15?"devout":s<0.4?"wayward":s<0.7?"schismatic":"apostate choir";}
+function pledgeCost(i){ return Math.ceil(costOf(i)/CFG.pledgeMult); }
+function tokensNeeded(i){
+  if(S.thresholds[i]!==0||(!S.heretic&&i===S.patron)||!CFG.pledgeNeedsToken)return 0;
+  let opened=0;
+  for(let g=0;g<9;g++)if((S.heretic||g!==S.patron)&&S.thresholds[g]>0)opened++;
+  return 1+opened*CFG.pledgeTokenStep;
+}
+function buy(i,useToken){
+  if(S.offer||S.bases[i].broken||(!owns(i)&&S.thresholds.filter(Boolean).length>=CFG.maxPledges))return;
+  if(S.thresholds[i]>=CFG.maxThreshold)return;
+  const opening=S.thresholds[i]===0;
+  const need=tokensNeeded(i);
+  // A token IS the pledge: paying one (or the mandatory several) waives the blood markup.
+  // Exactly one deduction happens here — spend is the single source of truth.
+  const tok=opening&&(need>0||(!!useToken&&S.tokens>0));
+  const spend=need>0?need:(tok?1:0);
+  if(S.tokens<spend)return;
+  const c=tok?pledgeCost(i):costOf(i);
+  if(S.blood<c)return;
+  S.tokens-=spend;
+  const raw=Math.min(S.rawBank,c*S.rawBank/Math.max(1,S.blood));S.rawBank-=raw;S.offered[i]+=raw;
+  S.blood-=c; S.spent+=c; S.invested[i]+=c; S.thresholds[i]++; S.bought++;
+  if(S.thresholds[i]===1)toast(GODS[i].name+" grants "+GODS[i].weapon+".");
+  else if(S.thresholds[i]===PASSIVE_AT)toast(GODS[i].name+" — favor: "+PASSIVE_TXT[i]+".");
+  else if(S.thresholds[i]===CFG.maxThreshold)toast(GODS[i].name+" is satisfied. For now.");
+  else if(S.thresholds[i]>=CFG.titheFrom)toast(GODS[i].name+" tithes its enemies: +"+
+    Math.round(CFG.tithePer*(S.thresholds[i]-CFG.titheFrom+1)*100)+"% from blood that wears their mark.");
+  recalcPassives();
+  if(S.thresholds[i]>=1){
+    const o=S.thresholds[i]===1?weaponOffer(i):drawOffer(i);
+    if(o.length){S.offer=o;S.offerGod=i;}
+  }
+  drawAltar();
+}
+function recalcPassives(){
+  const st={speed:1,dmg:1,area:1,pickup:1,regen:0,iframe:CFG.iframe,cdr:1};
+  S.maxHp=CFG.playerHp;
+  // the pull is the Bottomless's: every threshold in it reaches a little further, and the two
+  // ranged gods can learn to reach too. There is no magnet; there is coveting.
+  st.pickup*=1+0.05*S.thresholds[1];
+  if(S.gmod[5].f.reach)st.pickup*=1.25;
+  if(S.gmod[6].f.reach)st.pickup*=1.25;
+  for(let i=0;i<9;i++){
+    if(S.thresholds[i]<PASSIVE_AT)continue;
+    if(i===0)S.maxHp=CFG.playerHp*1.10;
+    if(i===1)st.pickup*=1.15;
+    if(i===2)st.speed*=1.08;
+    if(i===3)st.regen+=0.5;
+    if(i===4)st.dmg*=1.12;
+    if(i===5)st.area*=1.15;
+    if(i===6){st.speed*=1.07;st.iframe+=0.25;}
+    if(i===7)st.cdr*=0.88;
+  }
+  for(const m of S.gmod){S.maxHp+=m.f.vessel||0;st.iframe+=m.f.mercy||0;st.regen+=m.f.regen||0;st.speed+=m.f.speed||0;st.pickup+=m.f.pickup||0;}
+  S.stat=st;
+  S.hp=Math.min(S.hp,S.maxHp);
+}
+
+// ---------------------------------------------------------------- input
+const keys={};
+addEventListener("keydown",e=>{
+  keys[e.key.toLowerCase()]=1;
+  if(e.code==="Space"){e.preventDefault();
+    if(S&&S.mode==="play")openAltar(); else if(S&&S.mode==="altar")closeAltar();}
+});
+addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=0;});
+
+// floating thumbstick: the stick is born wherever the finger lands, so there is no
+// fixed pad to miss and either thumb works
+const stick={active:false,id:null,ox:0,oy:0,x:0,y:0};
+function stickDrop(){stick.active=false;stick.id=null;}
+cv.addEventListener("touchstart",e=>{
+  e.preventDefault();
+  if(!S||S.mode!=="play")return;
+  if(stick.id!==null)return;
+  const t=e.changedTouches[0];
+  stick.id=t.identifier;stick.ox=stick.x=t.clientX;stick.oy=stick.y=t.clientY;stick.active=true;
+},{passive:false});
+cv.addEventListener("touchmove",e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches)if(t.identifier===stick.id){stick.x=t.clientX;stick.y=t.clientY;}
+},{passive:false});
+function endTouch(e){
+  e.preventDefault();
+  for(const t of e.changedTouches)if(t.identifier===stick.id)stickDrop();
+}
+cv.addEventListener("touchend",endTouch,{passive:false});
+cv.addEventListener("touchcancel",endTouch,{passive:false});
+document.getElementById("altarBtn").onclick=()=>{
+  if(!S)return;
+  stickDrop();
+  if(S.mode==="play")openAltar(); else if(S.mode==="altar")closeAltar();
+};
+
+// ---------------------------------------------------------------- helpers
+function rnd(a,b){return a+Math.random()*(b-a);}
+function dist2(a,b,c,d){const x=a-c,y=b-d;return x*x+y*y;}
+// Weapons swing at what is coming for you first; a passing eater only when nothing is.
+function nearest(x,y,maxR){
+  let best=null,bd=maxR?maxR*maxR:Infinity, bh=null,bhd=bd;
+  for(const e of S.enemies){
+    if(e.dead||e.turned||protectedFromPlayer(e))continue;
+    const d=dist2(x,y,e.x,e.y);
+    if(d<bd){bd=d;best=e;}
+    if(d<bhd&&(e.role==="hunt"||e.boss)){bhd=d;bh=e;}
+  }
+  return bh||best;
+}
+function fx(x,y,r,col,life){S.fx.push({x:x,y:y,r:r,col:col,life:life,max:life});}
+function hex(a){return Math.round(Math.max(0,Math.min(1,a))*255).toString(16).padStart(2,"0");}
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.style.opacity="1";clearTimeout(t._h);
+  t._h=setTimeout(()=>{t.style.opacity="0";},2200);
+}
+// src: undefined = the priest's own hand. A servant struck by the priest turns on them.
+function hurt(e,dmg,col,src,conditionTick=false){
+  if(e.dead||((!src||src.turned)&&protectedFromPlayer(e)))return;
+  if(!conditionTick)dmg*=godEffectScale(e,abilityGod(col));
+  if(dmg<=0)return;
+  dmg=buildDamage(e,dmg,col,src);
+  if(e.priest&&e.sig)dmg=priestGuard(e,dmg);
+  const dealt=Math.min(Math.max(0,e.hp),Math.max(0,dmg));
+  if(!src||src.turned)combatMeter(Math.min(Math.max(0,e.hp),Math.max(0,dmg)));
+  e.hp-=dmg;
+  if(e.seat)e.hurtT=CFG.seatRegenDelay;
+  else if(!src&&!e.boss&&!e.turned)hordeStruck(e);     // what your hand means depends on what it struck
+  if(e.hp<=0)killEnemy(e,col,src);
+  return dealt;
+}
+// A broken seat casts its god out of this world. Its hoard spills where it stood, its servants
+// turn on you, and its friends — those not already at war with it — rise. Only your own hand
+// wakes them; a thrall's counts as yours.
+function breakSeat(e,mine){
+  const b=e.base, g=b.g;
+  b.broken=true; b.ent=null; b.r=0; b.rmax=0; b.warAny=false; b.spokes.fill(0);
+  seatHoard(b);
+  S.departed+=S.offered[g];S.offered[g]=0;
+  b.B=0;
+  for(const o of S.enemies)if(!o.dead&&o.god===g&&!o.seat&&!o.turned){o.role="hunt";o.tt=1;o.tgt=null;}
+  fx(b.x,b.y,240,GODS[g].col,0.9);
+  const risen=[];
+  if(mine)for(let h=0;h<9;h++){
+    const d=ringDist(g,h); if(h===g||d>2||S.war[g][h]||S.bases[h].broken||alliedGod(h))continue;
+    S.spike[h]=Math.max(S.spike[h],CFG.seatSpike*(d===1?1:0.6)); risen.push(GODS[h].name);
+  }
+  toast(GODS[g].name+"'s seat is broken. "+GODS[g].name+" is cast out."+(risen.length?" "+risen.join(" and ")+" rise in fury.":""));
+  if(mine){
+    if(S.extermination)S.heresy++;
+    let rivals=0; for(let h=0;h<9;h++)if(h!==S.patron&&!S.bases[h].broken)rivals++;
+    if(!rivals&&!S.forsaken&&!S.heretic&&S.extermination)patronTurns();
+  }
+}
+// A seat under your hand calls its own home. Eaters and carriers of that god near the seat
+// turn on you for as long as you keep striking it. Thralls and priests are not its to call.
+function seatRecall(b){
+  const g=b.g, R2=CFG.seatRecallR*CFG.seatRecallR;
+  for(const o of S.enemies){
+    if(o.dead||o.seat||o.turned||o.boss||o.god!==g||o.role==="hunt")continue;
+    if(dist2(o.x,o.y,b.x,b.y)<R2){o.role="hunt";o.tt=1;o.tgt=null;}
+  }
+}
+// What a broken seat's hoard does. The ledger closes either way: what leaves is counted.
+function seatHoard(b){
+  const g=b.g; if(b.B<=0)return;
+  if(CFG.seatHoard==="spills"){
+    const n=Math.min(CFG.seatSpillChunks,Math.max(1,Math.ceil(b.B/8)));
+    for(let k=0;k<n;k++){const a=Math.random()*6.283,d=rnd(30,150);mkOrb(b.x+Math.cos(a)*d,b.y+Math.sin(a)*d,b.B/n,1<<g);}
+  } else if(CFG.seatHoard==="inherit"){
+    const heirs=[]; let tw=0;
+    for(let h=0;h<9;h++){if(h===g||S.bases[h].broken)continue;const d=ringDist(g,h),w=d===1?2:(d===2?1:0);if(w){heirs.push([h,w]);tw+=w;}}
+    if(!tw)for(let h=0;h<9;h++)if(h!==g&&!S.bases[h].broken){heirs.push([h,1]);tw++;}
+    for(const [h,w] of heirs){S.bases[h].B+=b.B*w/tw;fx(S.bases[h].x,S.bases[h].y,60,GODS[g].col,0.6);}
+  } else S.departed+=b.B;                          // leaves: the swarm takes what it ate with it
+}
+// With no rival left, your god has no use for a priest. Everything it has turns at once, and
+// its wrath is already full: nothing you do from here is forgiven.
+function patronTurns(){
+  S.forsaken=true;
+  const p=S.patron, b=S.bases[p];
+  for(const o of S.enemies)if(!o.dead&&!o.seat&&!o.turned&&o.god===p){o.role="hunt";o.tt=1;o.tgt=null;}
+  fx(b.x,b.y,320,GODS[p].col,1);
+  S.spike[p]=Math.max(S.spike[p],12);S.hostQueue[p]=80;S.hostSize[p]=80;S.hostAcc[p]=0;
+  toast(GODS[p].name+' demands your collected blood. Refuse: survive its host and destroy the final seat.');
+}
+function mkOrb(x,y,v,mask){
+  if(v<=0)return;
+  if(S.terrain){const p=WorldNavigation.nearest(S.terrain,x,y,4);x=p.x;y=p.y;}
+  S.orbs.push({x:x,y:y,v:v,mask:mask|0,r:3+1.5*Math.sqrt(v),age:0});
+}
+// Stage is chain depth made flesh. Quantity never touches it.
+function restage(e){
+  if(e.boss)return;
+  const depth=popcount(e.mask), st=depth>=3?2:(depth>=2?1:0);
+  const mh=e.hp0*CFG.stageHp[st]*Math.pow(CFG.chainMult,depth);
+  if(st>e.stage)fx(e.x,e.y,CFG.stageR[st]+8,GODS[e.god].col,0.4);
+  e.hp=Math.max(1,e.hp+(mh-e.maxHp)); e.maxHp=mh;
+  e.stage=st; hordeRestage(e,st); e.big=st>0; e.res=st>0?CFG.resBig:CFG.resTrash;
+}
+
+// Unfolding shreds resistance, so it multiplies every other god's conditions.
+function afflict(e,key,amt,g=CONDITION_GOD[key]){
+  if(e.dead||protectedFromPlayer(e))return;
+  const res=Math.max(0,Math.min(0.9,e.res-e.unf*CFG.unfoldShred))*(key==='rad'&&S.gmod[5].f.ion?.5:1);
+  e.c[key]+=amt*(1-res)*godEffectScale(e,g);
+}
+function slowOf(e){ return Math.min(CFG.slowCap,Math.max(buildSlow(e),e.c.rad*CFG.radSlowPer+(e.hysteria>0?(S.gmod[1].f.panic?.5:.3):0))); }
+function tickConds(e,dt,moveFrac){
+  const c=e.c, D=S.stat.dmg;
+  if(c.burn>0){ hurt(e,c.burn*CFG.burnDps*D*dt,"#e0662a",undefined,true); c.burn=Math.max(0,c.burn-dt/CFG.burnLife*c.burn); }
+  if(c.rad>0){ hurt(e,c.rad*CFG.radDps*D*dt,"#d9c05a",undefined,true); c.rad=Math.max(0,c.rad-dt/CFG.radLife*c.rad); }
+  if(c.bleed>0&&!e.dead){                         // floor rate, the target's own motion multiplies it
+    const mult=CFG.bleedFloor+(1-CFG.bleedFloor)*moveFrac;
+    hurt(e,c.bleed*CFG.bleedDps*mult*D*dt,"#b23a34",undefined,true);
+    c.bleed=Math.max(0,c.bleed-dt/CFG.bleedLife*c.bleed);
+  }
+  if(c.dis>0&&!e.dead){                           // self-consuming, like a poison
+    hurt(e,c.dis*CFG.disDps*D*dt,"#7a9a3f",undefined,true);
+    c.dis=Math.max(0,c.dis-CFG.disDecay*dt);
+  }
+  if(c.inf>0)c.inf=Math.max(0,c.inf-dt/CFG.infLife*c.inf);
+  if(e.unf>0)e.unf=Math.max(0,e.unf-dt*(S.gmod[6].f.unfoldMemory?.175:.35));
+}
+
+function killEnemy(e,col,src){
+  if(e.dead)return; e.dead=true;
+  if(e.seat){breakSeat(e,!src||src.turned);return;}
+  hordeDeath(e);
+  // who gets the credit: the priest (no src, or a whispered thrall), or another god's servant
+  const mine=!src||src.turned;
+  if(e.turned&&S.gmod[1].f.hysteria)hystericalRelease(e);
+  if(mine){S.kills++;addHeat(e.god,CFG.heatPerKill);buildDeath(e);}
+  let mask=e.mask|(1<<e.god);
+  if(src&&src.turned)mask|=1<<1;                 // the Bottomless coveted it first
+  if(mine&&e.kb===2)mask|=1<<2;                  // the swarm ate first
+  mkOrb(e.x,e.y,e.abs,mask);
+  const c=e.c;
+  if(c.dis>0&&!src?.diseaseBurst)queueDiseaseBurst(e);
+  if(c.inf>0&&e.infGen<CFG.infGenCap&&S.infBudget>0){
+    // shrapnel carries a slice of what the host was suffering — a percentage set by how
+    // heavily infested it was, so one stack harasses and a full host delivers
+    const frac=Math.min(CFG.infCarryCap,c.inf*CFG.infCarryPerStack);
+    const load={dis:c.dis*frac,burn:c.burn*frac,bleed:c.bleed*frac,rad:c.rad*frac};
+    const n=Math.min(CFG.infShots,S.infBudget);
+    S.infBudget-=n;
+    for(let k=0;k<n;k++){
+      const a=Math.random()*6.283;
+      S.shots.push({x:e.x,y:e.y,vx:Math.cos(a)*430,vy:Math.sin(a)*430,r:3,
+        dmg:CFG.infDmg*S.stat.dmg,life:0.85,col:"#c98a2b",god:2,
+        inf:1,gen:e.infGen+1,load:load});
+    }
+    fx(e.x,e.y,26,"#c98a2b",0.25);
+  }
+  if(e.boss){
+    S.bossAlive=Math.max(0,S.bossAlive-1);
+    if(mine)S.tokens++;
+    if(e.priest&&e.sig)banishPriest(e,mine);           // sent back, not killed
+    else{
+      if(e.priest&&e.bank>0){if(S.bases[e.god].broken)S.departed+=e.bank;else S.bases[e.god].B+=e.bank;e.bank=0;}
+      if(mine)toast((e.priest?"The priest of "+GODS[e.god].name+" is spent. ":"")+"A pledge token, torn out of it.");
+    }
+    fx(e.x,e.y,120,"#e8e2d8",0.6);
+  }
+  fx(e.x,e.y,e.r+4,col||"#7a2622",0.22);
+}
+
+// ---------------------------------------------------------------- spawning
+function servant(g,x,y,role,hp,r,spd,seed){
+  hp*=S.enemyPower||1;
+  if(S.terrain&&role!=="seat"){const p=WorldNavigation.nearest(S.terrain,x,y,Math.min(r,24));x=p.x;y=p.y;}
+  return {x:x,y:y,god:g,role:role,tt:0,tgt:null,tgtT:Math.random()*0.5,
+    hp:hp,maxHp:hp,hp0:hp,r:r,spd:spd,big:false,boss:false,stage:0,abs:seed,mask:0,kb:-1,mobCd:Math.random()*0.5,
+    c:{dis:0,burn:0,bleed:0,rad:0,inf:0},res:CFG.resTrash,unf:0,infGen:0,
+    turned:0,turnT:0,hitCd:0,opening:1,dead:false};
+}
+// The larger thing comes from the angriest god's seat, carrying that god's blood.
+// The angriest god that still has a priest to send sends it. Each god keeps three (priests.js);
+// a banished one cannot answer until its time is up.
+function spawnBoss(){
+  if(S.bossAlive>=CFG.maxPriests)return;
+  const order=[0,1,2,3,4,5,6,7,8].filter(h=>!S.bases[h].broken&&!alliedGod(h)).sort((a,b)=>wrathOf(b)-wrathOf(a)||Math.random()-0.5);
+  for(const g of order){
+    const i=pickPriest(g); if(i<0)continue;
+    const b=S.bases[g], m=S.t/60, hp=(CFG.enemyHpBase+CFG.enemyHpPerMin*m)*CFG.bossHpMult;
+    const seed=Math.min(CFG.bossBlood,b.B); b.B-=seed;
+    S.bossN++; S.bossAlive++;
+    priestBody(g,i,hp,seed);
+    return;
+  }
+}
+function birth(g,role,m,tight,kind){
+  const b=S.bases[g], a=Math.random()*6.283, d=tight?rnd(20,64):rnd(24,b.r*0.55);
+  return hordeBody(g,kind||(role==="hunt"?"grunt":eaterKind()),role,m,b.x+Math.cos(a)*d,b.y+Math.sin(a)*d);
+}
+function spawn(dt){
+  if(S.finale)return;
+  const m=S.t/60;
+  const eaters=Array(9).fill(0);
+  for(const e of S.enemies)if(!e.dead&&!e.seat&&e.role!=='hunt')eaters[e.god]++;
+  const eaterQuota=Math.ceil((CFG.maxEnemies-CFG.maxHunters)/Math.max(1,S.bases.filter(b=>!b.broken).length));
+  if(S.t>=S.bossN*CFG.bossEvery+CFG.bossEvery*0.4)spawnBoss();
+  // the world's appetite, split nine ways; a fed god breeds more, so the curve is an outcome
+  const per=(CFG.spawnBase+CFG.spawnPerMin*m)*CFG.spawnScale/9;
+  for(let g=0;g<9;g++){
+    const b=S.bases[g];
+    if(b.broken)continue;                             // cast out: it breeds nothing here now
+    S.spawnAccG[g]+=dt*per*(1+b.B*CFG.breedK);
+    S.spawnAccG[g]=Math.min(3,S.spawnAccG[g]);
+    while(S.spawnAccG[g]>=1){
+      S.spawnAccG[g]-=1;
+      // influence first: most of what is born eats; a skirmish share gathers into a pack
+      const hf=hostileFrac(g)*(S.eaten?1:CFG.skirmishFrac);
+      if(Math.random()<hf){ if(S.hunters>=CFG.maxHunters)break; S.packAcc[g]++; continue; }
+      if(eaters[g]>=eaterQuota||S.enemies.length-S.hunters>=CFG.maxEnemies-CFG.maxHunters)break;
+      birth(g,"eat",m,false); eaters[g]++;
+    }
+  }
+  // packs, hosts and titans: nothing hunts alone
+  hordeSpawn(dt,m);
+}
+// The more a god hates you, the more it wants a proper army before it comes: it musters in
+// reserve, faster when angrier and when fatter, and each host it sends is larger than the last.
+function hostTarget(g){return Math.round(CFG.hostBase+CFG.hostPerWrath*Math.min(12,wrathOf(g))+CFG.hostGrowth*S.hostN[g]);}
+function musterTick(dt){
+  if(S.finale)return;
+  if(S.eaten)return;
+  for(let g=0;g<9;g++){
+    const b=S.bases[g]; if(b.broken||alliedGod(g)||(S.extermination&&!S.heretic&&!S.forsaken&&g===S.patron))continue;
+    const w=wrathOf(g);
+    if(w<=0){S.muster[g]=Math.max(0,S.muster[g]-0.05*dt);continue;}   // a calmed god stands its host down, slowly
+    S.muster[g]+=(CFG.musterBase+CFG.musterPerWrath*w)*(1+b.B*CFG.breedK)*dt;
+    const T=hostTarget(g);
+    if(S.hostQueue[g]<=0&&S.muster[g]>=T){
+      S.muster[g]-=T; S.hostQueue[g]=T; S.hostSize[g]=T; S.hostAcc[g]=0; S.hostN[g]++; S.warned[g]=false;
+      toast("A host of "+T+" marches from "+GODS[g].name+"'s seat.");
+    }else if(!S.warned[g]&&S.hostQueue[g]<=0&&S.muster[g]>=CFG.hostWarnAt*T){
+      S.warned[g]=true; toast(GODS[g].name+" gathers a host.");
+    }
+  }
+}
+
+// ---------------------------------------------------------------- weapons
+function lvl(i){return (S.weaponPass!==undefined&&S.weaponPass!==i)||replacesWeapon(i)||S.gmod[i].arm===1?0:Math.min(8,S.thresholds[i]);}
+const FIB=[1,2,3,5,8,13,21,34];
+
+function castRay(x,y,ang,len,dmg,canSplit,depth){
+  const dx=Math.cos(ang),dy=Math.sin(ang),wid=11*(S.gmod[6].f.rayWidth||1),hits=[];
+  for(const e of S.enemies){
+    if(e.dead||protectedFromPlayer(e)||godEffectScale(e,6)===0)continue;
+    const rx=e.x-x,ry=e.y-y,along=rx*dx+ry*dy;
+    if(along<0||along>len)continue;
+    if(Math.abs(-rx*dy+ry*dx)<wid+e.r)hits.push({e:e,along:along});
+  }
+  hits.sort((a,b)=>a.along-b.along);
+  let kills=0,fi=0;
+  const rules=S.gmod[6].f;
+  hits.forEach((h,k)=>{
+    const alive=!h.e.dead;
+    h.e.unf+=(S.gmod[6].f.proof?2:1)*godEffectScale(h.e,6);                                // unfolding: shreds condition resistance
+    if(rules.null)stripResistance(h.e,6);
+    if(rules.intersection&&h.e.unf>0)afflict(h.e,'rad',2,6);
+    const extra=(rules.derivative?1+Math.min(.6,h.e.unf*.04):1)*(rules.null&&Object.values(h.e.c).filter(v=>v>0).length>=3?1.5:1);
+    hurt(h.e,dmg*extra*Math.pow(rules.proof?1:rules.falloff||.9,k),"#5ab5c9");
+    if(k===0&&rules.recursive&&depth===0){castRay(h.e.x,h.e.y,ang-Math.PI/3,len*.5,dmg*.5,false,2);castRay(h.e.x,h.e.y,ang+Math.PI/3,len*.5,dmg*.5,false,2);}   // -10% per pierce
+    if(alive&&h.e.dead){
+      kills++;
+      if(canSplit&&depth===0&&fi<FIB.length&&kills===FIB[fi]){
+        fi++;
+        castRay(h.e.x,h.e.y,ang-0.6,len*0.6,dmg*0.55,false,1);
+        castRay(h.e.x,h.e.y,ang+0.6,len*0.6,dmg*0.55,false,1);
+      }
+    }
+  });
+  S.rays.push({x:x,y:y,dx:dx,dy:dy,len:len,life:0.13,max:0.13,depth:depth});
+}
+
+// Uniform spatial hash so bodies actually pack against each other instead of stacking.
+// Key wraps at 1024 cells; distant regions may collide into a bucket, which only costs
+// a failed distance check.
+const SEPG=36, sepCell=new Map();
+function separate(){
+  sepCell.clear();
+  const n=S.enemies.length;
+  for(let i=0;i<n;i++){
+    const e=S.enemies[i]; if(e.dead)continue;
+    const k=((Math.floor(e.x/SEPG)&1023)<<10)|(Math.floor(e.y/SEPG)&1023);
+    const b=sepCell.get(k); if(b)b.push(e); else sepCell.set(k,[e]);
+  }
+  for(let i=0;i<n;i++){
+    const e=S.enemies[i]; if(e.dead||e.seat)continue;
+    const gx=Math.floor(e.x/SEPG), gy=Math.floor(e.y/SEPG);
+    for(let ax=-1;ax<=1;ax++)for(let ay=-1;ay<=1;ay++){
+      const b=sepCell.get((((gx+ax)&1023)<<10)|((gy+ay)&1023));
+      if(!b)continue;
+      for(let j=0;j<b.length;j++){
+        const o=b[j]; if(o===e||o.dead)continue;
+        const dx=e.x-o.x, dy=e.y-o.y, min=e.r+o.r;
+        let d2=dx*dx+dy*dy;
+        if(d2>=min*min||d2===0)continue;
+        const d=Math.sqrt(d2), push=(min-d)*0.5;
+        if(o.seat){WorldNavigation.move(S.terrain,e,dx/d*push*2,dy/d*push*2);continue;}
+        WorldNavigation.move(S.terrain,e,dx/d*push,dy/d*push);
+        WorldNavigation.move(S.terrain,o,-dx/d*push,-dy/d*push);
+      }
+    }
+  }
+}
+
+// Densest blast-sized disk reachable from (mx,my). Returns a POINT, not an enemy —
+// nothing to lose track of when the anchor dies, so the commitment actually holds.
+function bestCluster(mx,my,blastR,range){
+  const r2=range*range, b2=blastR*blastR, n=S.enemies.length;
+  let bx=mx,by=my,bc=-1,bd=Infinity;
+  for(let i=0;i<n;i++){
+    const c=S.enemies[i];
+    if(c.dead||c.turned)continue;
+    const dx=c.x-mx,dy=c.y-my,d2=dx*dx+dy*dy;
+    if(d2>r2)continue;
+    let k=0;
+    for(let j=0;j<n;j++){
+      const o=S.enemies[j];
+      if(o.dead||o.turned)continue;
+      const ax=o.x-c.x,ay=o.y-c.y;
+      if(ax*ax+ay*ay<b2)k++;
+    }
+    if(k>bc||(k===bc&&d2<bd)){bc=k;bd=d2;bx=c.x;by=c.y;}   // near clusters win ties
+  }
+  return {x:bx,y:by,n:Math.max(0,bc)};
+}
+function clusterCount(x,y,blastR){
+  const b2=blastR*blastR; let k=0;
+  for(const e of S.enemies)if(!e.dead&&!e.turned&&dist2(x,y,e.x,e.y)<b2)k++;
+  return k;
+}
+function lockCluster(mn){
+  const range=Math.min(CFG.minionSearchR,CFG.minionSpeed*Math.max(0,mn.life));
+  let t=null;
+  if(CFG.minionPolicy==="nearest"){
+    t=nearest(mn.x,mn.y,range);
+  }else if(CFG.minionPolicy==="random"){
+    const r2=range*range, pool=[];
+    for(const e of S.enemies)if(!e.dead&&!e.turned&&dist2(mn.x,mn.y,e.x,e.y)<r2)pool.push(e);
+    t=pool.length?pool[Math.floor(Math.random()*pool.length)]:null;
+  }else{
+    const b=bestCluster(mn.x,mn.y,mn.r,range);
+    mn.tx=b.x; mn.ty=b.y; mn.lock=b.n; return;
+  }
+  if(t){mn.tx=t.x; mn.ty=t.y; mn.lock=clusterCount(t.x,t.y,mn.r);}
+  else {mn.tx=mn.x; mn.ty=mn.y; mn.lock=0;}
+}
+
+function arcHit(ang,r,half,dmg,col){
+  let hits=0;
+  for(const e of S.enemies){
+    if(e.dead||protectedFromPlayer(e)||godEffectScale(e,abilityGod(col))===0)continue;
+    if(dist2(S.px,S.py,e.x,e.y)<r*r){
+      let d=Math.atan2(e.y-S.py,e.x-S.px)-ang;
+      d=Math.atan2(Math.sin(d),Math.cos(d));
+      if(Math.abs(d)<half){afflict(e,col==="#b23a34"?"bleed":"burn",2+(col==="#b23a34"?S.gmod[3].f.serration||0:S.gmod[4].f.brand||0));hurt(e,col==="#b23a34"?bloodStrike(e,dmg):dmg,col);hits++;}
+    }
+  }
+  S.fx.push({arc:1,x:S.px,y:S.py,r:r,ang:ang,half:half,col:col,life:0.18,max:0.18});
+  return hits;
+}
+
+function fire(dt){
+  fireArmaments(dt);
+  if(!S.dualPatron)return;
+  const g=S.heretic?6:S.patron,M=S.gmod[g],arm=M.arm,cd=S.cd;
+  try{S.weaponPass=g;S.secondaryPass=true;M.arm=1-arm;S.cd=S.secondaryCd;fireArmaments(dt);}
+  finally{M.arm=arm;S.cd=cd;delete S.weaponPass;S.secondaryPass=false;}
+}
+function fireArmaments(dt){
+  for(let i=0;i<9;i++)if(S.thresholds[i]>0&&(S.weaponPass===undefined||S.weaponPass===i))S.cd[i]-=dt;
+  const D=S.stat.dmg*wordMultiplier(), A=S.stat.area, C=S.stat.cdr;
+  fireMetamorphoses();
+  alternativeWeapons(D,A,C);
+
+  // 0 — Rotting presence: aura, disease stacks, detonation on death
+  if(lvl(0)>0&&S.cd[0]<=0){
+    const M=S.gmod[0], L=lvl(0), r=(74+13*L)*A*M.area;
+    S.cd[0]=weaponInterval(0); S.auraTick++;
+    for(const e of S.enemies){
+      if(e.dead)continue;
+      if(dist2(S.px,S.py,e.x,e.y)<r*r){
+        hurt(e,(3+1.6*L)*D*S.gmod[0].dmg,"#7a9a3f");
+        afflict(e,"dis",1+Math.floor(L/3)+(M.f.lesions||0));
+      }
+    }
+    if(L>=8&&S.auraTick%10===0){          // capstone: mass half-stack detonation
+      fx(S.px,S.py,r,"#7a9a3f",0.3);
+      for(const e of S.enemies)if(!e.dead&&e.c.dis>0&&dist2(S.px,S.py,e.x,e.y)<r*r){
+        hurt(e,e.c.dis*2.2*D,"#7a9a3f"); e.c.dis*=0.5;
+      }
+    }
+  }
+
+  // 1 — Covetous whisper: turn an enemy against its own; it screams and slows
+  if(lvl(1)>0&&S.cd[1]<=0){
+    const L=lvl(1); S.cd[1]=weaponInterval(1);
+    const e=nearest(S.px,S.py,250*(S.gmod[1].f.inviteRange||1));
+    // it cannot covet the largest things; a full-depth carrier is beyond it
+    if(e)enthrall(e,(5.5+0.4*L)*(S.gmod[1].f.adore?1.8:1));
+  }
+
+  // 2 — Devouring flight: fast small shots that yield extra blood on the kill.
+  // Locusts finish the wounded — targets are ranked by how few shots would kill them,
+  // softened by distance, and each gets only as many shots as it needs. No overkill.
+  if(lvl(2)>0&&S.cd[2]<=0){
+    const L=lvl(2), M=S.gmod[2]; S.cd[2]=weaponInterval(2);
+    const n=2+Math.floor(L/2)+M.count, dmg=(6+2.3*L)*D*CFG.locustDmgScale*M.dmg,
+          R2=CFG.locustRange*CFG.locustRange;
+    function bug(ax,ay){
+      const mm=Math.hypot(ax,ay)||1;
+      S.shots.push({x:S.px,y:S.py,vx:ax/mm*540,vy:ay/mm*540,r:4,
+        dmg:dmg,life:1.0,col:"#c98a2b",god:2,inf:1,gen:0,load:null});
+    }
+    let fired=0;
+    if(CFG.locustPolicy==="burst"){
+      const cand=[];
+      for(const e of S.enemies){
+        if(e.dead||e.turned||protectedFromPlayer(e))continue;
+        const d2=dist2(S.px,S.py,e.x,e.y);
+        if(d2>R2)continue;
+        const need=Math.max(1,Math.ceil(e.hp/dmg));
+        cand.push({e:e,need:need,score:need+Math.sqrt(d2)/CFG.locustReach});
+      }
+      cand.sort((a,b)=>a.score-b.score);
+      for(let i=0;i<cand.length&&fired<n;i++){
+        const c=cand[i], give=Math.min(c.need,n-fired);
+        for(let k=0;k<give;k++){bug(c.e.x-S.px,c.e.y-S.py);fired++;}
+      }
+    }else{
+      const t=nearest(S.px,S.py,CFG.locustRange);
+      if(t){bug(t.x-S.px,t.y-S.py);fired++;}
+    }
+    while(fired<n){const a=Math.random()*6.283;bug(Math.cos(a),Math.sin(a));fired++;}
+  }
+
+  // 3 — Blood debt: melee arc that heals per enemy struck
+  if(lvl(3)>0&&S.cd[3]<=0){
+    const L=lvl(3), M=S.gmod[3]; S.cd[3]=weaponInterval(3);
+    const t=nearest(S.px,S.py,240)||{x:S.px+S.aim.x*50,y:S.py+S.aim.y*50};
+    const sb=M.f.schism?1+schism().S*0.6:1;
+    const hits=arcHit(Math.atan2(t.y-S.py,t.x-S.px),(88+7*L)*A*M.area,1.05,
+      (11+4.4*L)*D*M.dmg*sb,"#b23a34");
+    if(hits)healPlayer((M.f.heal?1.2:0.55)*hits);
+  }
+
+  // 4 — Cinderswing: wider arc that leaves burning ground
+  if(lvl(4)>0&&S.cd[4]<=0){
+    const L=lvl(4), M=S.gmod[4]; S.cd[4]=weaponInterval(4);
+    const t=nearest(S.px,S.py,300)||{x:S.px+S.aim.x*50,y:S.py+S.aim.y*50};
+    const ang=Math.atan2(t.y-S.py,t.x-S.px), r=(112+9*L)*A*M.area, half=1.35;
+    arcHit(ang,r,half,(14+5.2*L)*D*M.dmg,"#e0662a");
+    for(let k=0;k<2+Math.floor(L/3)+M.count;k++){
+      const a=ang+rnd(-half,half), dd=rnd(r*0.45,r);
+      S.fields.push({x:S.px+Math.cos(a)*dd,y:S.py+Math.sin(a)*dd,
+        r:36*A*M.area*(M.f.wildfire?1.35:1),life:M.f.wildfire?10.5:7,max:M.f.wildfire?10.5:7,tick:0,dmg:(4.2+1.1*L)*D*M.dmg,col:"#e0662a"});
+    }
+  }
+
+  // 5 — Gravity well: telegraphed impact on a distant target, pulls while it fuses
+  if(lvl(5)>0&&S.cd[5]<=0){
+    const L=lvl(5), M=S.gmod[5]; S.cd[5]=weaponInterval(5);
+    const pool=S.enemies.filter(e=>!e.dead&&!e.turned&&!protectedFromPlayer(e)&&dist2(S.px,S.py,e.x,e.y)>140*140&&dist2(S.px,S.py,e.x,e.y)<700*700);
+    const t=pool.length?pool[Math.floor(Math.random()*pool.length)]:nearest(S.px,S.py,600);
+    if(t)S.fields.push({well:1,x:t.x,y:t.y,r:(66+6*L)*A*M.area,
+      life:0.9,max:0.9,fuse:M.f.collapse?.2:.8,dmg:(30+11*L)*D*M.dmg,col:"#d9c05a"});
+  }
+
+  // 6 — Unfold: piercing ray, -10% per pierce, fibonacci splits at max threshold
+  if(lvl(6)>0&&S.cd[6]<=0){
+    const L=lvl(6), M=S.gmod[6]; S.cd[6]=weaponInterval(6);
+    const t=nearest(S.px,S.py,700);
+    if(t)castRay(S.px+S.aim.x*(M.f.origin||0),S.py+S.aim.y*(M.f.origin||0),Math.atan2(t.y-S.py,t.x-S.px),
+      (400+34*L)*A*M.area,(18+6.2*L)*D*M.dmg,L>=CFG.splitAtLevel,0);
+    if(t&&M.f.parallel)castRay(S.px+25,S.py+25,Math.atan2(t.y-S.py,t.x-S.px),(400+34*L)*A*M.area,(18+6.2*L)*D*M.dmg*.4,false,1);
+    if(t&&M.f.echo)castRay(S.px,S.py,Math.atan2(t.y-S.py,t.x-S.px)+Math.PI/6,(400+34*L)*A*M.area,(18+6.2*L)*D*M.dmg*.5,false,1);
+  }
+
+  // 7 — Anti-sigil: placed glyphs; enemies detonate them, you take the word
+  if(lvl(7)>0&&S.cd[7]<=0){
+    const L=lvl(7), M=S.gmod[7]; S.cd[7]=weaponInterval(7);
+    if(S.sigils.length<3+Math.floor(L/2)+M.count){
+      const a=Math.random()*6.283, d=rnd(40,150);
+      S.sigils.push({x:S.px+Math.cos(a)*d,y:S.py+Math.sin(a)*d,
+        r:44*A*M.area,life:13,dmg:(23+8.5*L)*D*M.dmg,spent:0,buffUsed:0,strip:M.f.strip?1:0});
+    }
+  }
+
+  // 8 — Carrion rite: minions that seek and detonate
+  if(lvl(8)>0&&S.cd[8]<=0){
+    const L=lvl(8), M=S.gmod[8]; S.cd[8]=weaponInterval(8);
+    const a=Math.random()*6.283;
+    const mn={x:S.px+Math.cos(a)*22,y:S.py+Math.sin(a)*22,life:M.f.vigil?14:9,arm:CFG.minionArm,
+      dmg:(26+9.5*L)*(S.thresholds[8]>=PASSIVE_AT?1.25:1)*D*CFG.minionDmgScale*M.dmg,
+      r:(58+3*L)*A*M.area,done:0,tx:0,ty:0,lock:0,carry:M.f.carry?1:0};
+    mn.shards=transformed(8);lockCluster(mn);
+    S.minions.push(mn);
+    if(M.f.echo){const twin={...mn,x:mn.x+18};lockCluster(twin);S.minions.push(twin);}
+  }
+}
+
+// What a servant wants, re-decided twice a second. Hunters want the priest. Eaters want, in
+// order: an enemy at war within sense, blood on the ground they may take, a living town,
+// then the war wherever it is, then home. A full carrier wants home.
+// tt: 1 priest, 2 servant, 3 orb, 4 town, 5 seat
+function pickTarget(e){
+  e.tgtT=0.45+Math.random()*0.2; e.tgt=null;
+  if(assaultTarget(e))return;
+  if(hordeOrders(e))return;                        // titans guard, leaders think, members obey
+  if(e.priest){                                    // a rival priest: you, if you are near; a town otherwise. A grudge sees further.
+    const hr=CFG.prayRange*2*(1+(e.grudge||0));
+    if(dist2(S.px,S.py,e.x,e.y)<hr*hr){e.tt=1;return;}
+    // it wants what you want: the living town nearest you, so the two of you meet over it
+    let bt=null,bd=Infinity;
+    for(const t of S.towns){ if(t.P<=0)continue; const d=dist2(S.px,S.py,t.x,t.y); if(d<bd){bd=d;bt=t;} }
+    if(bt){e.tgt=bt;e.tt=4;return;}
+    e.tt=1;return;
+  }
+  if(e.boss||e.role==="hunt"){
+    // a hunter of a god only mildly angry fights its god's war first, when the war is in reach
+    if(!e.boss&&S.bases[e.god].warAny&&wrathOf(e.god)<CFG.warFirstBelow){
+      const wr=S.war[e.god]; let best=null,bd=CFG.warSense*CFG.warSense;
+      for(let h=0;h<9;h++){ if(!wr[h])continue;
+        for(const o of S.byGod[h]){const d=dist2(e.x,e.y,o.x,o.y);if(d<bd){bd=d;best=o;}} }
+      if(best){e.tgt=best;e.tt=2;return;}
+    }
+    e.tt=1;return;
+  }
+  if(e.role!=="return"&&e.abs>=CFG.gullet[e.stage])e.role="return";
+  if(e.role==="return"){e.tt=5;return;}
+  const wr=S.war[e.god]; let best=null,bd;
+  if(S.bases[e.god].warAny){
+    bd=CFG.warSense*CFG.warSense;
+    for(let h=0;h<9;h++){ if(!wr[h])continue;
+      for(const o of S.byGod[h]){const d=dist2(e.x,e.y,o.x,o.y);if(d<bd){bd=d;best=o;}} }
+    if(best){e.tgt=best;e.tt=2;return;}
+  }
+  bd=hordeOrbSense(e)**2;
+  for(const o of S.orbs){ if(o.got||(o.mask&(1<<e.god)))continue;
+    const d=dist2(e.x,e.y,o.x,o.y);if(d<bd){bd=d;best=o;} }
+  if(best){e.tgt=best;e.tt=3;return;}
+  bd=Infinity;
+  for(const t of S.towns){ if(t.P<=0)continue; const d=dist2(e.x,e.y,t.x,t.y);if(d<bd){bd=d;best=t;} }
+  if(best){e.tgt=best;e.tt=4;return;}
+  if(S.bases[e.god].warAny){
+    bd=Infinity;
+    for(let h=0;h<9;h++){ if(!wr[h])continue;
+      for(const o of S.byGod[h]){const d=dist2(e.x,e.y,o.x,o.y);if(d<bd){bd=d;best=o;}} }
+    if(best){e.tgt=best;e.tt=2;return;}
+  }
+  e.tt=5;
+}
+function strikeInReach(e,edmg,dmul){
+  const wr=S.war[e.god], gx=Math.floor(e.x/SEPG), gy=Math.floor(e.y/SEPG);
+  for(let ax=-1;ax<=1;ax++)for(let ay=-1;ay<=1;ay++){
+    const bk=sepCell.get((((gx+ax)&1023)<<10)|((gy+ay)&1023)); if(!bk)continue;
+    for(const o of bk){
+      if(o===e||o.dead||o.turned||o.seat||!wr[o.god])continue;
+      const rr=e.r+o.r+CFG.mobReach;
+      if(dist2(e.x,e.y,o.x,o.y)<rr*rr){hurt(o,edmg*CFG.mobDmgScale*dmul,GODS[e.god].col,e);return true;}
+    }
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------- update
+function update(dt){
+  S.t+=dt;
+  WorldNavigation.begin(S.terrain);
+  const m=S.t/60;
+
+  let mx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);
+  let my=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);
+  if(stick.active){                                   // touch overrides keys
+    const sx=stick.x-stick.ox, sy=stick.y-stick.oy, sd=Math.hypot(sx,sy);
+    if(sd>CFG.stickDead){mx=sx/sd;my=sy/sd;}else{mx=0;my=0;}
+  }
+  const ml=Math.hypot(mx,my);
+  if(ml>0){mx/=ml;my/=ml;S.aim={x:mx,y:my};}
+  const sp=playerSpeed();
+  {const p={x:S.px,y:S.py,r:11};WorldNavigation.move(S.terrain,p,mx*sp*dt,my*sp*dt);S.px=p.x;S.py=p.y;}
+  S.inv-=dt;
+  if(S.wordT>0)S.wordT-=dt;
+  if(S.stat.regen)healPlayer(S.stat.regen*dt);
+  updateBuild(dt);
+  updateMetamorphoses(dt);
+  hordeFields(dt); if(S.mode!=="play")return;       // ground that hurts the priest
+  priestsTick(dt); if(S.mode!=="play")return;       // what rival priests leave aimed at you
+
+  S.infBudget=CFG.infShotsPerFrame;
+  spawn(dt);
+  fire(dt);
+
+  // heat cools; wars are checked twice a second; the world notices when it has been eaten
+  for(let g=0;g<9;g++){S.heat[g]=Math.max(0,S.heat[g]-CFG.heatDecay*dt);S.spike[g]=Math.max(0,S.spike[g]-CFG.spikeDecay*dt);}
+  musterTick(dt);
+  S.warT-=dt; if(S.warT<=0){S.warT=0.5;terrainTick(0.5);}
+  if(!S.eaten&&worldLeft()<=0){
+    S.eaten=true;
+    for(const e of S.enemies)if(!e.dead){e.role="hunt";e.tt=1;e.tgt=null;}
+    toast("The world is eaten. They turn to you.");
+  }
+  { const pd=Math.hypot(S.px,S.py), lim=CFG.worldLimit; if(pd>lim){S.px*=lim/pd;S.py*=lim/pd;} }
+
+  // the priest is a mouth too, and every god feeding beside it notices
+  for(const t of S.towns)t.mouths.length=0;
+  let feeding=null;
+  for(const t of S.towns)if(t.P>0&&dist2(S.px,S.py,t.x,t.y)<(t.r+18)*(t.r+18)){feeding=t;break;}
+  if(feeding){const take=Math.min(feeding.P,CFG.townPlayerBleed*dt);feeding.P-=take;S.blood+=take;S.rawBank+=take;S.harvested+=take;S.inc.town+=take;}
+  S.feeding=feeding;
+
+  for(let g=0;g<9;g++)S.byGod[g].length=0;
+  S.hunters=0;
+  for(const e of S.enemies)if(!e.dead&&!e.turned&&!e.seat){S.byGod[e.god].push(e);if(e.role==="hunt")S.hunters++;}
+
+  const edmg=(CFG.enemyDmgBase+CFG.enemyDmgPerMin*m)*S.enemyPower;
+  for(const e of S.enemies){
+    if(e.dead)continue;
+    e.hysteria=Math.max(0,(e.hysteria||0)-dt);
+    const moveFrac=1-slowOf(e);
+    tickConds(e,dt,moveFrac);
+    if(e.dead)continue;
+    if(e.seat){                                     // a seat holds, and heals when left alone
+      const b=e.base; e.maxHp=(CFG.seatHpBase+CFG.seatHpPerBlood*b.B)*S.enemyPower;
+      e.hurtT-=dt;
+      if(e.hurtT>0){                                // under your hand: the god heats, and calls its own home
+        addHeat(b.g,CFG.seatHeat*dt);
+        e.recallT=(e.recallT||0)-dt;
+        if(e.recallT<=0){e.recallT=CFG.seatRecallT;seatRecall(b);}
+      } else e.hp+=e.maxHp*CFG.seatRegen*dt;
+      e.hp=Math.min(e.hp,e.maxHp); continue;
+    }
+    const home=inOwnTerrain(e), dmul=home?CFG.terrBonusDmg:1, smul=(home?CFG.terrBonusSpd:1)*(e.desperate&&dist2(e.x,e.y,S.px,S.py)>1600**2?2.5:1);
+
+    if(e.turned){
+      e.turnT-=dt; e.hitCd-=dt;
+      if(e.turnT<=0){if(S.gmod[1].f.afterglow)healPlayer(3);if(S.gmod[1].f.hysteria)hystericalRelease(e);e.turned=0;e.opening=1;e.spd/=1.25;e.tgt=null;e.tgtT=0;continue;}   // released, not executed
+      // Strikes everything it touches at once, split by how many that is, and takes a
+      // single tick back per exchange the way the player does under i-frames.
+      whisperHits.length=0;
+      for(const o of S.enemies){
+        if(o===e||o.dead||o.turned)continue;
+        if(dist2(e.x,e.y,o.x,o.y)<CFG.whisperReach*CFG.whisperReach)whisperHits.push(o);
+      }
+      if(whisperHits.length){
+        const mult=WHISPER_SPLIT[Math.min(whisperHits.length,5)];
+        if(e.opening){
+          e.opening=0;
+          for(const o of whisperHits)hurt(o,edmg*CFG.whisperOpening*mult,"#b8447a",e);
+        }
+        if(e.hitCd<=0){
+          for(const o of whisperHits){
+            if(S.gmod[1].f.spread)for(const k in e.c)if(k!=="inf"&&e.c[k]>0)afflict(o,k,e.c[k]*0.25,1);
+            hurt(o,edmg*mult,"#b8447a",e);
+          }
+          hurt(e,edmg,"#b8447a");
+          e.hitCd=CFG.whisperTickCd;
+        }
+      }
+      if(e.dead)continue;
+      // Chasing bodies beats chasing you: heading for the player just joins a parallel
+      // stream moving at the same speed, and parallel streams rarely touch.
+      let ax=S.px-e.x, ay=S.py-e.y;
+      if(CFG.whisperSeek==="nearest"){
+        const t=nearest(e.x,e.y,500);
+        if(t){ax=t.x-e.x;ay=t.y-e.y;}
+      }
+      const waypoint=WorldNavigation.steer(S.terrain,e,e.x+ax,e.y+ay);
+      const aw=Math.atan2(waypoint.y-e.y,waypoint.x-e.x),travel=Math.min(Math.hypot(waypoint.x-e.x,waypoint.y-e.y),e.spd*moveFrac*dt);
+      WorldNavigation.move(S.terrain,e,Math.cos(aw)*travel,Math.sin(aw)*travel);
+      continue;
+    }
+
+    e.tgtT-=dt; e.mobCd-=dt;
+    if(e.tgtT<=0||!e.tt||(e.tgt&&(e.tgt.dead||e.tgt.got||(e.tt===4&&e.tgt.P<=0))))pickTarget(e);
+    let tx=S.px,ty=S.py,stop=0,sp=1;
+    if(e.tt===2||e.tt===3){tx=e.tgt.x;ty=e.tgt.y;}
+    else if(e.tt===6){tx=e.tgt.x;ty=e.tgt.y;stop=e.r+e.tgt.r+4;}
+    else if(e.tt===4){tx=e.tgt.x;ty=e.tgt.y;stop=e.tgt.r*0.7;}
+    else if(e.tt===5){const b=S.bases[e.god];tx=b.x;ty=b.y;stop=e.role==="return"?CFG.seatR+e.r+4:70;}   // deposit at the seat's edge: the seat is a body
+    else if(e.tt===7){tx=e.x;ty=e.y;}               // formation: the slot comes from hordeThink
+    const ov=hordeThink(e,dt,edmg);                 // its kind may have other ideas: a slot, a flight, a charge
+    if(ov&&!ov.hold){tx=ov.tx;ty=ov.ty;stop=ov.stop;sp=ov.speed||1;}
+    const dx=tx-e.x,dy=ty-e.y,dd=Math.hypot(dx,dy);
+    if(dd>stop+1&&!(ov&&ov.hold)){
+      const waypoint=WorldNavigation.steer(S.terrain,e,tx,ty),nx=waypoint.x-e.x,ny=waypoint.y-e.y,nd=Math.hypot(nx,ny);
+      if(nd>0){const st=Math.min(nd,dd-stop,e.spd*sp*smul*moveFrac*dt);WorldNavigation.move(S.terrain,e,nx/nd*st,ny/nd*st);}
+    }
+
+    if(e.pray){                                     // the prayer lands where you stood when it began
+      e.pray.t-=dt;
+      if(e.pray.t<=0){
+        if(!protectedFromPlayer(e)&&dist2(S.px,S.py,e.pray.x,e.pray.y)<CFG.prayR*CFG.prayR){
+          receiveDamage(edmg*CFG.prayDmg,e); S.inv=S.stat.iframe; fx(S.px,S.py,26,GODS[e.god].col,0.3);
+          if(S.hp<=0){die();return;}
+        }
+        e.pray=null;
+      }
+    }
+    if(e.tt===6&&dd<=stop+8&&e.mobCd<=0){hurt(e.tgt,edmg*dmul,GODS[e.god].col,e);e.mobCd=.5;}
+    if(e.tt===1&&!protectedFromPlayer(e)){
+      if(dist2(S.px,S.py,e.x,e.y)<(e.r+11)*(e.r+11)&&S.inv<=0){
+        receiveDamage(edmg*dmul*(e.dashMult||1),e); S.inv=S.stat.iframe; fx(S.px,S.py,20,"#e8534c",0.25);
+        if(S.hp<=0){die();return;}
+      }
+      if(e.priest&&(!e.sig||e.sig.pray)){           // only some priests pray the old wound; the rest have their own way
+        e.prayCd-=dt;
+        if(!e.pray&&e.prayCd<=0&&dist2(S.px,S.py,e.x,e.y)<CFG.prayRange*CFG.prayRange){
+          e.prayCd=CFG.prayCd; e.pray={x:S.px,y:S.py,t:0.75};
+          S.fx.push({pray:1,x:S.px,y:S.py,r:CFG.prayR,col:GODS[e.god].col,life:0.75,max:0.75});
+        }
+      }
+    }else if(e.tt===4){
+      if(e.priest){                                 // it is a mouth like you, and banks what it takes
+        if(dd<e.tgt.r+e.r){const take=Math.min(e.tgt.P,CFG.priestBleed*dt);e.tgt.P-=take;e.bank+=take;S.rivalTaken+=take;}
+      }else if(dd<e.tgt.r+e.r&&e.kind!=="minion"&&e.kind!=="leader"&&!e.titan){e.tgt.mouths.push(e);if(e.kind==="sieger")e.tgt.mouths.push(e);}   // a sieger is two mouths
+    }else if(e.tt===5&&e.role==="return"&&dd<=stop+2){
+      const b=S.bases[e.god];
+      if(b.broken)mkOrb(b.x+rnd(-40,40),b.y+rnd(-40,40),e.abs,1<<e.god);   // no god to receive it: it spills
+      else{b.B+=e.abs; fx(b.x,b.y,30,GODS[e.god].col,0.5);}
+      e.abs=0;e.mask=0;restage(e);e.role="eat";e.tgtT=0;
+      if(e.kind==="leader")e.dead=true;             // a leader with nothing left to lead goes back into the seat
+    }
+    // war is fought by whoever is in reach, whatever it was doing
+    if(e.mobCd<=0){
+      if(e.tt===2&&e.tgt&&!e.tgt.dead){
+        const o=e.tgt, rr=e.r+o.r+CFG.mobReach;
+        if(dist2(e.x,e.y,o.x,o.y)<rr*rr){hurt(o,edmg*CFG.mobDmgScale*dmul,GODS[e.god].col,e);e.mobCd=0.5;}
+      }else if(S.bases[e.god].warAny&&strikeInReach(e,edmg,dmul))e.mobCd=0.5;
+    }
+  }
+
+  separate();
+
+  // settlements bleed under their mouths; a share of every bite spills, marked
+  for(const t of S.towns){
+    const n=t.mouths.length; if(!n||t.P<=0)continue;
+    const eff=Math.min(n,CFG.townMouths), per=CFG.townBleed*dt*eff/n;
+    for(const e of t.mouths){
+      const take=Math.min(t.P,per); if(take<=0)break;
+      const sp=e.kind==="sieger"?HORDE.siegerSpill:CFG.townSpill;
+      t.P-=take; e.abs+=take*(1-sp); t.spill+=take*sp;
+      if(feeding===t)addHeat(e.god,CFG.heatBleed*dt);
+      if(t.spill>=2){
+        t.spill-=2; const a=Math.random()*6.283, d=t.r*rnd(0.9,1.3);
+        mkOrb(t.x+Math.cos(a)*d,t.y+Math.sin(a)*d,2,1<<e.god);
+      }
+    }
+  }
+
+  for(const s of S.shots){
+    if(s.boneShard){advanceBoneArc(s,dt);continue;}
+    if(s.orchard){advancePustule(s,dt);continue;}
+    if(s.god===2)prepareLocust(s,dt);
+    s.x+=s.vx*dt;s.y+=s.vy*dt;s.life-=dt;
+    for(const e of S.enemies){
+      if(e.dead||e.turned||protectedFromPlayer(e))continue;
+      if(!s.hits?.has(e)&&dist2(s.x,s.y,e.x,e.y)<(e.r+s.r)*(e.r+s.r)){
+        if(s.inf){
+          afflict(e,"inf",1+(S.gmod[2].f.infBite||0));
+          e.infGen=Math.max(e.infGen,s.gen||0);
+          if(s.load)for(const k in s.load)if(s.load[k]>0)afflict(e,k,s.load[k],2);
+        }
+        if(s.condition)afflict(e,s.condition,s.stacks||1,s.god??abilityGod(s.col));
+        e.kb=s.god===2?2:-1;                 // the swarm eats first: its kills carry its mark
+        hurt(e,s.dmg*(s.god===2&&S.gmod[2].f.execute&&e.hp<e.maxHp*.3?1.7:1),s.col); if(s.hits)s.hits.add(e);if(!s.pierces||--s.pierces<=0)s.life=-1;e.kb=-1;
+        break;
+      }
+    }
+  }
+  S.shots=S.shots.filter(s=>s.life>0);
+
+  for(const f of S.fields){
+    prepareField(f);f.life-=dt;
+    if(f.well){
+      f.fuse-=dt;
+      pullBodies(f.x,f.y,f.r*2.1,S.gmod[5].f.horizon?198:S.gmod[5].f.accretion?132:66,dt);
+      if(f.fuse<=0&&!f.done){
+        f.done=1; fx(f.x,f.y,f.r,"#d9c05a",0.3);radiantRing(f.x,f.y,f.r,3+(S.gmod[5].f.radStacks||0));
+        for(const e of S.enemies)if(!e.dead&&dist2(f.x,f.y,e.x,e.y)<f.r*f.r){
+          hurt(e,f.dmg,"#d9c05a"); afflict(e,"rad",3+(S.gmod[5].f.radStacks||0));
+        }
+      }
+    }else{
+      f.tick-=dt;
+      if(f.tick<=0){
+        f.tick=f.col===GODS[4].col?(S.gmod[4].f.emberTick||.5):.5;
+        for(const e of S.enemies)if(!e.dead&&dist2(f.x,f.y,e.x,e.y)<f.r*f.r){
+          hurt(e,f.dmg*(f.wildfire&&e.c.dis>0?1.6:1),f.col); afflict(e,f.condition||"burn",(f.stacks||0.5)+(f.col===GODS[4].col?S.gmod[4].f.brand||0:0),abilityGod(f.col));
+        }
+      }
+    }
+  }
+  S.fields=S.fields.filter(f=>f.life>0);
+
+  for(const g of S.sigils){
+    prepareSigil(g);g.life-=dt;
+    if(S.gmod[7].f.sigilPull)pullBodies(g.x,g.y,g.r*2,65,dt,7);
+    if(!g.buffUsed&&dist2(S.px,S.py,g.x,g.y)<g.r*g.r){consumeWord(g);}
+    if(g.spent)continue;g.rearm=(g.rearm||0)-dt;if(g.rearm>0)continue;
+    for(const e of S.enemies){
+      if(e.dead||e.turned||protectedFromPlayer(e))continue;
+      if(g.triggered||dist2(g.x,g.y,e.x,e.y)<g.r*g.r){
+        const repeat=S.gmod[7].f.palimpsest&&!g.repeated;g.repeated=1;g.spent=repeat?0:1;g.life=repeat?Math.min(g.life,5):0;g.rearm=.7;g.triggered=false;onSealBlast(g);let siphon=0;fx(g.x,g.y,g.r,"#8a6fc4",0.3);
+        for(const o of S.enemies)if(!o.dead&&dist2(g.x,g.y,o.x,o.y)<g.r*g.r){
+          if(g.strip)stripResistance(o,7);
+          if(S.gmod[7].f.silence)afflict(o,"rad",4,7);
+          if(S.gmod[7].f.sigilDisease)afflict(o,"dis",4,7);
+          siphon+=(hurt(o,g.dmg,"#8a6fc4")||0)*.02;
+        }
+        if(S.gmod[7].f.sigilLeech)healPlayer(Math.min(4,siphon));
+        break;
+      }
+    }
+  }
+  S.sigils=S.sigils.filter(g=>g.life>0);
+
+  let retargets=CFG.minionRetargets;
+  for(const mn of S.minions){
+    mn.life-=dt; mn.arm-=dt;
+    const dx=mn.tx-mn.x, dy=mn.ty-mn.y, d=Math.hypot(dx,dy);
+    if(d>4){                                  // walks past nearby bodies; ignores incidental contact
+      const step=Math.min(d,CFG.minionSpeed*(S.gmod[8].f.tibia?1.4:1)*dt);
+      const waypoint=WorldNavigation.steer(S.terrain,mn,mn.tx,mn.ty),nx=waypoint.x-mn.x,ny=waypoint.y-mn.y,nd=Math.hypot(nx,ny);
+      if(nd>0)WorldNavigation.move(S.terrain,mn,nx/nd*Math.min(nd,step),ny/nd*Math.min(nd,step),6);
+    }else if(mn.arm<=0){
+      mn.life=0;                              // arrived at the spot it picked
+    }
+    // hold the plan through ordinary churn, abandon a cluster that has actually been wiped out
+    if(mn.life>0&&retargets>0&&mn.lock>0&&clusterCount(mn.tx,mn.ty,mn.r)<mn.lock*CFG.minionDecay){
+      retargets--; lockCluster(mn);
+    }
+    if(mn.life<=0&&!mn.done){
+      mn.done=1; fx(mn.x,mn.y,mn.r,"#8a97a8",0.3);boneEcho(mn.x,mn.y,mn.r,mn.dmg);if(mn.shards)launchBoneArcs(mn.x,mn.y,mn.dmg,mn.r);
+      for(const e of S.enemies)if(!e.dead&&dist2(mn.x,mn.y,e.x,e.y)<mn.r*mn.r){
+        if(mn.carry)afflict(e,"dis",4,8);
+        boneHit(e);hurt(e,mn.dmg,"#8a97a8");
+      }
+    }
+  }
+  S.minions=S.minions.filter(mn=>mn.life>0);
+
+  const pr=CFG.pickupBase*S.stat.pickup, leash=pr*CFG.leashMult;
+  S.nearOrb=false;
+  for(const o of S.orbs){
+    o.age+=dt;
+    const d=Math.hypot(S.px-o.x,S.py-o.y);
+    if(d<pr*1.5)S.nearOrb=true;
+    if(d<pr){
+      const a=Math.atan2(S.py-o.y,S.px-o.x), sp2=170+(pr-d)*4.2;
+      o.x+=Math.cos(a)*sp2*dt;o.y+=Math.sin(a)*sp2*dt;
+    }else if(CFG.leashMult>0&&d<leash&&popcount(o.mask)<=1){
+      // a fresh kill crawls after you a little way; blood already eaten once lies where it fell
+      const a=Math.atan2(S.py-o.y,S.px-o.x);
+      o.x+=Math.cos(a)*90*dt;o.y+=Math.sin(a)*90*dt;
+    }
+    if(d<16){
+      const k=popcount(o.mask), v1=o.v*Math.pow(CFG.chainMult,k), v=v1*tithe(o.mask);
+      S.blood+=v; S.rawBank+=o.v; S.harvested+=v; S.inc.orb+=o.v; S.inc.chain+=v1-o.v; S.inc.tithe+=v-v1;
+      if(CFG.bloodHeal)healPlayer(o.v*CFG.bloodHeal);
+      o.got=1; continue;
+    }
+    // any servant of a god not yet in the blood's provenance may take it; a priest takes anything
+    if(o.age<CFG.orbAbsorbDelay)continue;
+    const gx=Math.floor(o.x/SEPG), gy=Math.floor(o.y/SEPG);
+    outer: for(let ax=-1;ax<=1;ax++)for(let ay=-1;ay<=1;ay++){
+      const bk=sepCell.get((((gx+ax)&1023)<<10)|((gy+ay)&1023)); if(!bk)continue;
+      for(const e of bk){
+        if(e.dead||e.turned||e.seat)continue;
+        const rr=e.r+o.r+4;
+        if(e.priest){
+          if(dist2(e.x,e.y,o.x,o.y)>rr*rr)continue;
+          e.bank+=o.v; S.rivalTaken+=o.v; o.got=1; break outer;
+        }
+        if(e.role==="return"||(o.mask&(1<<e.god))||e.abs>=CFG.gullet[e.stage])continue;
+        if(dist2(e.x,e.y,o.x,o.y)>rr*rr)continue;
+        e.abs+=o.v; e.mask|=o.mask; restage(e); o.got=1; break outer;
+      }
+    }
+  }
+  S.orbs=S.orbs.filter(o=>!o.got);
+  // ripe blood: what no god can take gathers itself, twice a second
+  if(Math.floor(S.t*2)!==Math.floor((S.t-dt)*2)){
+    const ripe=S.orbs.filter(o=>popcount(o.mask)>=CFG.ripeDepth), rr=CFG.ripeMergeR*CFG.ripeMergeR;
+    for(let i=0;i<ripe.length;i++){
+      const a=ripe[i]; if(a.got)continue;
+      for(let j=i+1;j<ripe.length;j++){
+        const b=ripe[j]; if(b.got||dist2(a.x,a.y,b.x,b.y)>rr)continue;
+        a.v+=b.v; a.mask|=b.mask; a.r=3+1.5*Math.sqrt(a.v); b.got=1;
+      }
+    }
+    if(ripe.some(o=>o.got))S.orbs=S.orbs.filter(o=>!o.got);
+  }
+  // too much blood on the ground: the oldest seeps into its nearest neighbour, or back into the earth
+  while(S.orbs.length>CFG.orbCap){
+    const o=S.orbs.shift(); let best=null,bd=240*240;
+    for(const p of S.orbs){const d=dist2(o.x,o.y,p.x,p.y);if(d<bd){bd=d;best=p;}}
+    if(best){best.v+=o.v;best.mask|=o.mask;best.r=3+1.5*Math.sqrt(best.v);}
+    else{let bt=null,btd=Infinity;for(const t of S.towns){const d=dist2(o.x,o.y,t.x,t.y);if(d<btd){btd=d;bt=t;}}if(bt)bt.P+=o.v;}
+  }
+
+  S.enemies=S.enemies.filter(e=>!e.dead);            // nothing is culled: the world is all of it
+  for(const f of S.fx)f.life-=dt;
+  S.fx=S.fx.filter(f=>f.life>0);
+  for(const r of S.rays)r.life-=dt;
+  S.rays=S.rays.filter(r=>r.life>0);
+
+  // a line a minute in the console: where the blood went, for tuning
+  S.logT+=dt;
+  if(S.logT>=60){
+    S.logT-=60;
+    let seats=0,maxD=0; for(const b of S.bases)seats+=b.B; for(const e of S.enemies)maxD=Math.max(maxD,popcount(e.mask));
+    console.log("[min "+Math.round(S.t/60)+"] blood "+Math.floor(S.blood)+" favors "+S.bought+
+      " | taken "+Math.floor(S.harvested)+" = towns "+Math.floor(S.inc.town)+" + kills "+Math.floor(S.inc.orb)+
+      " + chain "+Math.floor(S.inc.chain)+" + tithe "+Math.floor(S.inc.tithe)+
+      " | world "+Math.round(worldLeft())+"/"+Math.round(worldLeft0())+" seats "+Math.round(seats)+" rivals "+Math.floor(S.rivalTaken)+
+      " departed "+Math.round(S.departed)+" heresy "+S.heresy+(S.forsaken?" FORSAKEN":"")+
+      " | hunters "+S.hunters+" eaters "+(S.enemies.length-S.hunters)+" orbs "+S.orbs.length+" maxDepth "+maxD);
+  }
+
+  campaignTick(dt);
+  updateHud();
+}
+
+function fmt(t){const m=Math.floor(t/60),s=Math.floor(t%60);return m+":"+String(s).padStart(2,"0");}
+function die(){
+  S.mode="dead"; stickDrop();
+  document.querySelector('#dead h1').textContent='You are spent';
+  document.getElementById("altar").classList.remove("on");
+  let lead=0;
+  for(let i=1;i<9;i++)if(S.bases[i].B>S.bases[lead].B)lead=i;
+  const share=S.world0>0?S.harvested/S.world0:0, left=worldLeft0()>0?worldLeft()/worldLeft0():0;
+  document.getElementById("deadTxt").textContent=
+    "Survived "+fmt(S.t)+" · "+S.kills+" killed · "+Math.floor(S.harvested)+" blood taken, "+
+    (share*100).toFixed(1)+"% of the world (towns "+Math.floor(S.inc.town)+", kills "+Math.floor(S.inc.orb)+
+    ", chain "+Math.floor(S.inc.chain)+", tithe "+Math.floor(S.inc.tithe)+") · rival priests took "+Math.floor(S.rivalTaken)+
+    " · "+Math.floor(S.blood)+" still banked · "+Math.round(left*100)+"% of the world uneaten. "+
+    GODS[lead].name+" holds the most of it, and claims the ending.";
+  document.getElementById("dead").classList.add("on");
+}
+
+// ---------------------------------------------------------------- render
+function render(){
+  cx.fillStyle="#0e0d0c";cx.fillRect(0,0,W,H);
+  if(!S)return;
+  const zoom=cameraZoom(),viewW=W/zoom,viewH=H/zoom;
+  cx.save();cx.translate(W/2,H/2);cx.scale(zoom,zoom);cx.translate(-S.px,-S.py);
+
+  WorldTerrain.draw(cx,S.terrain,S.px-viewW/2,S.py-viewH/2,viewW,viewH);
+  // Visible edge of the playable world, matching the movement limit.
+  cx.strokeStyle="#b6a08366";cx.lineWidth=5;
+  cx.beginPath();cx.arc(0,0,CFG.worldLimit,0,Math.PI*2);cx.stroke();cx.lineWidth=1;
+
+  // each god's ground, grown from what its seat holds
+  for(const b of S.bases){
+    if(b.broken)continue;
+    groundPath(b,1,0,0);
+    cx.fillStyle=GODS[b.g].col+"12";cx.fill();
+    cx.strokeStyle=GODS[b.g].col+(b.warAny?"77":"3a");cx.lineWidth=b.warAny?1.5:1;cx.stroke();
+    // the contested edge burns brighter
+    cx.strokeStyle=GODS[b.g].col+"cc";cx.lineWidth=2;cx.beginPath();
+    for(let k=0;k<TN;k++){
+      if(!b.contested[k]||!b.contested[(k+1)%TN])continue;
+      const a0=k*TSTEP,a1=((k+1)%TN)*TSTEP;
+      cx.moveTo(b.x+Math.cos(a0)*b.spokes[k],b.y+Math.sin(a0)*b.spokes[k]);
+      cx.lineTo(b.x+Math.cos(a1)*b.spokes[(k+1)%TN],b.y+Math.sin(a1)*b.spokes[(k+1)%TN]);
+    }
+    cx.stroke();cx.lineWidth=1;
+  }
+  // settlements: what is left of them is what is left to take
+  for(const [ti,t] of S.towns.entries()){
+    const n=t.P>0?Math.max(1,Math.ceil(t.pts.length*t.P/t.P0)):0;
+    cx.save();cx.textAlign="center";cx.font="11px system-ui";
+    cx.fillStyle=t.P>0?"#efe0bd":"#a89b89";cx.strokeStyle="#181612";cx.lineWidth=3;
+    const label=t.name+" · "+(t.P>0?Math.round(t.P/t.P0*100)+"%":"spent");
+    cx.strokeText(label,t.x,t.y-t.r-18);cx.fillText(label,t.x,t.y-t.r-18);cx.restore();
+    WorldTerrain.drawTown(cx,t,n,S.px,S.py,viewW,viewH);
+    if(t.mouths.length||S.feeding===t){
+      cx.strokeStyle=S.feeding===t?"#e8e2d855":"#b23a3455";
+      cx.beginPath();cx.arc(t.x,t.y,t.r+8,0,6.283);cx.stroke();
+    }
+  }
+  for(const b of S.bases){WorldTerrain.drawCamp(cx,b,GODS[b.g].col,S.px,S.py,viewW,viewH);drawBase(b);}
+
+  if(S.thresholds[0]>0){
+    const r=(74+13*S.thresholds[0])*S.stat.area;
+    cx.fillStyle="#7a9a3f14";cx.beginPath();cx.arc(S.px,S.py,r,0,6.283);cx.fill();
+    cx.strokeStyle="#7a9a3f3a";cx.stroke();
+  }
+  for(const f of S.fields){
+    const a=f.well?(f.fuse>0?0.15+0.5*(1-f.fuse/0.8):0.1):0.16*(f.life/f.max);
+    cx.fillStyle=f.col+hex(a);
+    cx.beginPath();cx.arc(f.x,f.y,f.r,0,6.283);cx.fill();
+    if(f.well){cx.strokeStyle=f.col+"aa";cx.lineWidth=2;cx.stroke();cx.lineWidth=1;}
+  }
+  for(const s of S.sigils){
+    cx.strokeStyle="#8a6fc4"+(s.buffUsed?"55":"cc");cx.lineWidth=1.5;
+    cx.beginPath();cx.arc(s.x,s.y,s.r,0,6.283);cx.stroke();
+    cx.beginPath();
+    for(let k=0;k<7;k++){
+      const a=k*2*Math.PI*3/7-1.5708;
+      const px=s.x+Math.cos(a)*s.r*0.62, py=s.y+Math.sin(a)*s.r*0.62;
+      if(k)cx.lineTo(px,py);else cx.moveTo(px,py);
+    }
+    cx.closePath();cx.stroke();cx.lineWidth=1;
+  }
+  // blood is bone-pale with a red rim; its marks sit on the rim once it is worth reading
+  for(const o of S.orbs){
+    cx.fillStyle="#e8e2d8";cx.beginPath();cx.arc(o.x,o.y,o.r,0,6.283);cx.fill();
+    cx.strokeStyle="#b23a34";cx.stroke();
+    if(popcount(o.mask)>=CFG.ripeDepth){cx.strokeStyle="#e8e2d855";cx.beginPath();cx.arc(o.x,o.y,o.r+4,0,6.283);cx.stroke();}
+    if(o.v>=2&&o.mask){
+      let k=0;
+      for(let g=0;g<9;g++){
+        if(!(o.mask&(1<<g)))continue;
+        const a=k*1.1-1.57; cx.fillStyle=GODS[g].col;
+        cx.fillRect(o.x+Math.cos(a)*(o.r+3)-1.5,o.y+Math.sin(a)*(o.r+3)-1.5,3,3); k++;
+      }
+    }
+  }
+  drawHordeUnder(cx);
+  // hue is the god, brightness is whether it is coming for you, size is how deep its blood runs
+  for(const e of S.enemies){
+    if(e.dead||e.seat)continue;
+    const gc=GODS[e.god].col;
+    if(Math.abs(e.x-S.px)>viewW/2+120||Math.abs(e.y-S.py)>viewH/2+140)continue;
+    cx.fillStyle='#00000055';cx.beginPath();cx.ellipse(e.x,e.y+e.r*.4,e.r*1.05,e.r*.45,0,0,Math.PI*2);cx.fill();
+    cx.strokeStyle=e.turned?'#e78dbc':alliedGod(e.god)?'#9faf71':gc;cx.lineWidth=1.5;
+    cx.beginPath();cx.ellipse(e.x,e.y+e.r*.4,e.r*1.2,e.r*.55,0,0,Math.PI*2);cx.stroke();cx.lineWidth=1;
+    if(!ActorArt.draw(cx,e.god,e.x,e.y+e.r*.7,Math.max(28,e.r*3.2),S.t+e.god*.17,e.x>S.px)){
+      cx.fillStyle=gc;cx.beginPath();cx.arc(e.x,e.y,e.r,0,Math.PI*2);cx.fill();
+    }
+    if(e.boss||e.stage>=2){cx.strokeStyle="#e8e2d866";cx.lineWidth=2;
+      cx.beginPath();cx.arc(e.x,e.y,e.r+5,0,6.283);cx.stroke();cx.lineWidth=1;}
+    else if(e.stage===1){cx.strokeStyle="#e8e2d833";cx.beginPath();cx.arc(e.x,e.y,e.r+3,0,6.283);cx.stroke();}
+    if(e.priest){cx.fillStyle="#e8e2d8";cx.beginPath();cx.arc(e.x,e.y,8,0,6.283);cx.fill();}   // another one like you
+    else if(e.host&&!e.stage){cx.strokeStyle="#e8e2d855";cx.beginPath();cx.arc(e.x,e.y,e.r+2,0,6.283);cx.stroke();}   // part of a host
+    if(e.tt===3&&e.tgt&&!e.tgt.got){cx.strokeStyle=gc+"2e";cx.beginPath();cx.moveTo(e.x,e.y);cx.lineTo(e.tgt.x,e.tgt.y);cx.stroke();}
+    // one shared stack language: an arc per condition, thickness rising with stacks
+    const c=e.c;
+    let ring=e.r+2.5;
+    for(const cd of COND_VIS){
+      const v=c[cd.k]; if(v<=0.05)continue;
+      cx.strokeStyle=cd.col+hex(Math.min(1,0.28+v*0.08));
+      cx.beginPath();cx.arc(e.x,e.y,ring,cd.a0,cd.a1);cx.stroke();
+      ring+=2.2;
+    }
+    if(e.unf>0){
+      cx.strokeStyle="#5ab5c9"+hex(Math.min(1,0.25+e.unf*0.1));
+      cx.beginPath();cx.arc(e.x,e.y,ring,0,6.283);cx.stroke();
+    }
+    if(e.hp<e.maxHp){
+      cx.fillStyle="#000000aa";cx.fillRect(e.x-e.r,e.y-e.r-6,e.r*2,2.5);
+      cx.fillStyle="#c4534c";cx.fillRect(e.x-e.r,e.y-e.r-6,e.r*2*(e.hp/e.maxHp),2.5);
+    }
+  }
+  drawHordeOver(cx,viewW,viewH);
+  for(const mn of S.minions){
+    cx.strokeStyle="#8a97a82e";                       // the plan, made visible
+    cx.beginPath();cx.moveTo(mn.x,mn.y);cx.lineTo(mn.tx,mn.ty);cx.stroke();
+    cx.strokeStyle="#8a97a844";
+    cx.beginPath();cx.arc(mn.tx,mn.ty,mn.r,0,6.283);cx.stroke();
+    ActorArt.draw(cx,8,mn.x,mn.y+8,28,S.t);
+  }
+  drawMetamorphoses(cx);
+  for(const s of S.shots){
+    const arc=(s.orchard||s.boneShard)?Math.sin(s.flight*Math.PI):0;
+    if(s.orchard||s.boneShard){cx.fillStyle='#10181066';cx.beginPath();cx.ellipse(s.x,s.y,7,3,0,0,Math.PI*2);cx.fill();}
+    if(s.boneShard){cx.save();cx.translate(s.x+arc*(s.bend||0),s.y-arc*(s.lift||0));cx.rotate(s.flight*8);cx.fillStyle='#ddd1b8';cx.fillRect(-6,-2,12,4);for(const x of [-6,6]){cx.beginPath();cx.arc(x,0,3,0,Math.PI*2);cx.fill();}cx.restore();}
+    else{cx.fillStyle=s.col;cx.beginPath();cx.arc(s.x+arc*(s.bend||0),s.y-arc*(s.lift||0),s.r,0,6.283);cx.fill();}
+  }
+  for(const r of S.rays){
+    cx.strokeStyle=(r.col||"#5ab5c9")+hex(r.life/r.max*0.9);
+    cx.lineWidth=r.depth?4:9;
+    cx.beginPath();cx.moveTo(r.x,r.y);cx.lineTo(r.x+r.dx*r.len,r.y+r.dy*r.len);cx.stroke();
+    cx.lineWidth=1;
+  }
+  for(const f of S.fx){
+    const a=f.life/f.max;
+    if(f.pray){                                        // a telegraph that fills as it lands
+      cx.fillStyle=f.col+hex((1-a)*0.45);cx.beginPath();cx.arc(f.x,f.y,f.r,0,6.283);cx.fill();
+      cx.strokeStyle=f.col+"cc";cx.stroke();
+    }else if(f.polygon){
+      cx.strokeStyle=f.col+hex(a*.8);cx.lineWidth=1.5;cx.beginPath();
+      for(let k=0;k<f.polygon;k++){const angle=f.angle+k*Math.PI*2/f.polygon,x=f.x+Math.cos(angle)*f.r,y=f.y+Math.sin(angle)*f.r;k?cx.lineTo(x,y):cx.moveTo(x,y);}cx.closePath();cx.stroke();cx.lineWidth=1;
+    }else if(f.bone){ActorArt.draw(cx,8,f.x,f.y+12,26,S.t);
+    }else if(f.arc){
+      cx.strokeStyle=f.col+hex(a*0.86);cx.lineWidth=7;
+      cx.beginPath();cx.arc(f.x,f.y,f.r*0.8,f.ang-f.half,f.ang+f.half);cx.stroke();cx.lineWidth=1;
+    }else{
+      cx.strokeStyle=f.col+hex(a*0.78);
+      cx.beginPath();cx.arc(f.x,f.y,f.r*(1.25-a*0.25),0,6.283);cx.stroke();
+    }
+  }
+  if(S.nearOrb){                                      // the reach you are denying them, shown only when it matters
+    cx.strokeStyle="#e8e2d81a";cx.beginPath();cx.arc(S.px,S.py,CFG.pickupBase*S.stat.pickup,0,6.283);cx.stroke();
+  }
+  const flash=S.inv>0&&Math.floor(S.t*22)%2===0;
+  cx.fillStyle=S.wordT>0?"#c9b6f0":(flash?"#ffffff":"#e8e2d8");
+  cx.beginPath();cx.arc(S.px,S.py,11,0,6.283);cx.fill();
+  cx.restore();
+  if(S.finale?.rally){
+    const target=S.enemies.filter(e=>!e.dead&&e.desperate===S.finale.wave).sort((a,b)=>dist2(a.x,a.y,S.px,S.py)-dist2(b.x,b.y,S.px,S.py))[0];
+    if(target){const angle=Math.atan2(target.y-S.py,target.x-S.px),r=Math.min(W,H)*.34,x=W/2+Math.cos(angle)*r,y=H/2+Math.sin(angle)*r;
+      cx.save();cx.translate(x,y);cx.rotate(angle);cx.fillStyle='#e4c17f';cx.beginPath();cx.moveTo(13,0);cx.lineTo(-8,-7);cx.lineTo(-8,7);cx.closePath();cx.fill();cx.restore();
+      cx.fillStyle='#e4c17f';cx.font='11px system-ui';cx.textAlign='center';cx.fillText('LAST ATTACKERS · '+Math.ceil(Math.hypot(target.x-S.px,target.y-S.py))+' away',x,y+23);cx.textAlign='left';
+    }
+  }
+
+  if(stick.active){                                   // drawn in screen space
+    const sx=stick.x-stick.ox, sy=stick.y-stick.oy, sd=Math.hypot(sx,sy)||1;
+    const m=Math.min(46,sd);
+    cx.strokeStyle="#e8e2d82e";cx.lineWidth=2;
+    cx.beginPath();cx.arc(stick.ox,stick.oy,46,0,6.283);cx.stroke();cx.lineWidth=1;
+    cx.fillStyle="#e8e2d866";
+    cx.beginPath();cx.arc(stick.ox+sx/sd*m,stick.oy+sy/sd*m,18,0,6.283);cx.fill();
+  }
+  drawMinimap();
+}
+
+// the world, small: grounds, what is left of the towns, the seats, and you
+function drawMinimap(){
+  const sz=Math.min(132,Math.floor(W*0.3)), pad=12, ox=pad, oy=H-pad-sz, cxm=ox+sz/2, cym=oy+sz/2;
+  const k=(sz/2-4)/CFG.worldLimit;
+  cx.fillStyle="#161413cc";cx.strokeStyle="#3a3230";
+  cx.beginPath();cx.roundRect?cx.roundRect(ox,oy,sz,sz,8):cx.rect(ox,oy,sz,sz);cx.fill();cx.stroke();
+  cx.save();cx.beginPath();cx.rect(ox,oy,sz,sz);cx.clip();
+  WorldTerrain.minimap(cx,S.terrain,k,cxm,cym);
+  for(const b of S.bases){
+    if(b.broken)continue;
+    groundPath(b,k,cxm,cym);
+    cx.fillStyle=GODS[b.g].col+"2a";cx.fill();
+    if(b.warAny){cx.strokeStyle="#e04a4a66";cx.stroke();}
+  }
+  for(const t of S.towns){
+    if(t.P<=0)continue;
+    cx.fillStyle="#d8cfbf";const r=1.2+2.2*Math.sqrt(t.P/CFG.townMaxP);
+    cx.beginPath();cx.arc(cxm+t.x*k,cym+t.y*k,r,0,6.283);cx.fill();
+  }
+  for(const b of S.bases){
+    cx.fillStyle=b.broken?"#3a3230":GODS[b.g].col;cx.beginPath();cx.arc(cxm+b.x*k,cym+b.y*k,3,0,6.283);cx.fill();
+    if(!b.broken&&S.muster[b.g]>=1&&wrathOf(b.g)>0){          // a host gathering: the ring grows until it marches
+      const f=Math.min(1,S.muster[b.g]/hostTarget(b.g));
+      cx.strokeStyle=GODS[b.g].col+(S.hostQueue[b.g]>0?"ff":"aa");cx.lineWidth=S.hostQueue[b.g]>0?2:1;
+      cx.beginPath();cx.arc(cxm+b.x*k,cym+b.y*k,4+9*f,0,6.283);cx.stroke();cx.lineWidth=1;
+    }
+  }
+  for(const e of S.enemies){                      // the other priests, and where they are
+    if(e.dead||!e.priest)continue;
+    cx.fillStyle="#e8e2d8";cx.beginPath();cx.arc(cxm+e.x*k,cym+e.y*k,2.2,0,6.283);cx.fill();
+    cx.strokeStyle=GODS[e.god].col;cx.beginPath();cx.arc(cxm+e.x*k,cym+e.y*k,4,0,6.283);cx.stroke();
+  }
+  cx.fillStyle="#ffffff";cx.beginPath();cx.arc(cxm+S.px*k,cym+S.py*k,2.5,0,6.283);cx.fill();
+  cx.restore();
+}
+
+// a seat for each god: the one detail in the world that is only theirs
+function drawBase(b){
+  const g=GODS[b.g], col=g.col, x=b.x, y=b.y, t=S.t;
+  cx.save();cx.textAlign="center";cx.font="11px system-ui";
+  cx.strokeStyle="#181612";cx.lineWidth=3;cx.fillStyle=b.broken?"#a89b89":"#e8e2d8";
+  const seatLabel=g.name+(b.broken?" · cast out":"");
+  cx.strokeText(seatLabel,x,y+72);cx.fillText(seatLabel,x,y+72);cx.restore();
+  if(b.broken){                                     // a ruin: the ring it stood in, and the crack through it
+    cx.strokeStyle="#3a3230";cx.lineWidth=2;cx.beginPath();cx.arc(x,y,34,0,6.283);cx.stroke();
+    cx.strokeStyle=col+"44";cx.beginPath();cx.moveTo(x-30,y+22);cx.lineTo(x-6,y-4);cx.lineTo(x+4,y+10);cx.lineTo(x+28,y-26);cx.stroke();
+    cx.lineWidth=1;return;
+  }
+  cx.fillStyle='#151a17';cx.strokeStyle=col+'88';cx.lineWidth=3;
+  cx.beginPath();cx.ellipse(x,y+15,62,28,0,0,Math.PI*2);cx.fill();cx.stroke();
+  cx.strokeStyle=col+'44';cx.beginPath();cx.ellipse(x,y+15,83,40,0,0,Math.PI*2);cx.stroke();
+  for(let k=0;k<6;k++){const a=k*Math.PI/3;cx.fillStyle=col;cx.fillRect(x+Math.cos(a)*72-3,y+15+Math.sin(a)*34-3,6,6);}
+  ActorArt.draw(cx,b.g,x,y+20,115+Math.sin(t*1.4+b.pulse)*3,t*.65);
+  if(b.g===6){cx.strokeStyle=col+'bb';for(const n of [3,6]){cx.beginPath();for(let k=0;k<n;k++){const a=k*Math.PI*2/n+t*(n===3?.4:-.2),px=x+Math.cos(a)*55,py=y-40+Math.sin(a)*55;k?cx.lineTo(px,py):cx.moveTo(px,py);}cx.closePath();cx.stroke();}}
+  cx.lineWidth=1;
+  if(b.warAny){cx.strokeStyle="#e04a4a77";cx.beginPath();cx.arc(x,y,48,0,6.283);cx.stroke();}
+  if(b.ent&&b.ent.hp<b.ent.maxHp){                  // under siege
+    const w=72, f=Math.max(0,b.ent.hp/b.ent.maxHp);
+    cx.fillStyle="#000000aa";cx.fillRect(x-w/2,y+54,w,4);
+    cx.fillStyle=col;cx.fillRect(x-w/2,y+54,w*f,4);
+  }
+}
+
+// ---------------------------------------------------------------- hud
+function updateHud(){
+  updatePlayerReadout();
+  document.getElementById("challengeAlly").hidden=S.mode!=="play"||!S.bases.some(b=>!b.broken&&alliedGod(b.g)&&dist2(S.px,S.py,b.x,b.y)<180**2);
+  const sc=schism();
+  const nearestTown=S.towns.reduce((a,b)=>dist2(S.px,S.py,a.x,a.y)<dist2(S.px,S.py,b.x,b.y)?a:b);
+  const townDistance=Math.hypot(S.px-nearestTown.x,S.py-nearestTown.y);
+  document.getElementById("hLocation").textContent=townDistance<nearestTown.r?nearestTown.name:
+    WorldTerrain.region(S.terrain,S.px,S.py)+" · "+nearestTown.name+" ≥"+Math.ceil((townDistance-nearestTown.r)/(CFG.playerSpeed*S.stat.speed))+"s";
+  const rivalCamps=S.bases.filter(b=>!b.broken&&!protectedFromPlayer(b.ent)).sort((a,b)=>dist2(S.px,S.py,a.x,a.y)-dist2(S.px,S.py,b.x,b.y));
+  const camp=rivalCamps[0];
+  document.getElementById("hJourney").textContent=camp?GODS[camp.g].name+" · ≥"+
+    Math.ceil(Math.max(0,Math.hypot(S.px-camp.x,S.py-camp.y)-280)/(CFG.playerSpeed*S.stat.speed))+"s walk":"none remain";
+  document.getElementById("hTime").textContent=fmt(S.t);
+  document.getElementById("hBlood").textContent=Math.floor(S.blood);
+  document.getElementById("hTok").textContent=S.tokens;
+  document.getElementById("hWorld").textContent=Math.round(worldLeft()/Math.max(1,worldLeft0())*100)+"%";
+  document.getElementById("hShare").textContent=S.extermination?S.bases.filter(b=>b.broken).length+'/9 seats':(bloodControl()[0]*100).toFixed(1)+'% / 45%';
+  document.getElementById('hCampaign').textContent=WORLD_TYPES[S.world].name+' · level '+S.worldLevel+' · '+(S.finale?'Desperation '+S.finale.wave+'/3 · '+(S.finale.pause>0?'regrouping':S.finale.queue.length+S.enemies.filter(e=>!e.dead&&e.desperate===S.finale.wave).length+' attackers remain'+(S.finale.rally?' · converging on you':'')):S.extermination?(S.forsaken?'Betrayal: destroy your patron':'Exterminate the rival seats'):'Claim blood, then survive three waves');
+  const seatHealth=g=>S.bases[g].broken?'fallen':Math.ceil(S.bases[g].ent.hp/S.bases[g].ent.maxHp*100)+'%';
+  document.getElementById('hDefense').textContent=S.heretic?'No patron · no allies':S.extermination?'Patron '+seatHealth(S.patron)+(S.forsaken?' · hostile':' · protected until eight camps fall'):'Patron '+seatHealth(S.patron)+' · Allies '+S.groups[0].filter(g=>g!==S.patron).map(seatHealth).join(' / ');
+  document.getElementById("hS").textContent=sc.S.toFixed(2);
+  document.getElementById("hStand").textContent="("+standing(sc.S)+")";
+  document.getElementById("hHeart").textContent=GODS[sc.heart].name;
+  document.getElementById("hpfill").style.width=Math.max(0,S.hp/S.maxHp*100)+"%";
+  let hh="";
+  for(let g=0;g<9;g++){
+    const f=hostileFrac(g); if(f<=0)continue;
+    hh+='<span class="swatch" title="'+GODS[g].name+'" style="background:'+GODS[g].col+';opacity:'+(0.45+0.55*f).toFixed(2)+'"></span>';
+  }
+  document.getElementById("hHunt").innerHTML=hh||'<span class="dim">no one</span>';
+  let np=0; for(const e of S.enemies)if(e.priest&&!e.dead)np++;
+  document.getElementById("hRival").textContent=np;
+  document.getElementById("hRivalTaken").textContent=Math.floor(S.rivalTaken);
+  let hs="";
+  for(let g=0;g<9;g++){
+    if(S.bases[g].broken)continue;                    // a cast-out god gathers nothing
+    if(S.hostQueue[g]>0)hs+='<span class="swatch" style="background:'+GODS[g].col+'"></span><b>marching</b> ';
+    else if(S.muster[g]>=1&&wrathOf(g)>0)hs+='<span class="swatch" style="background:'+GODS[g].col+'"></span>'+Math.min(99,Math.round(100*S.muster[g]/hostTarget(g)))+'% ';
+  }
+  document.getElementById("hHost").innerHTML=hs||'<span class="dim">none gathering</span>';
+  updateCompactHud();
+}
+
+// ---------------------------------------------------------------- altar
+function openAltar(){
+  if(!S||S.mode!=="play")return;
+  S.mode="altar";document.getElementById("altar").classList.add("on");drawAltar();
+}
+function closeAltar(){
+  if(S.offer)return;                       // a pledge already paid for must be chosen
+  S.mode="play";document.getElementById("altar").classList.remove("on");
+}
+document.getElementById("closeAltar").onclick=closeAltar;
+
+function drawAltar(){
+  if(!S)return;
+  document.getElementById('closeAltar').disabled=!!S.offer;
+  renderPlayerStats();
+  const sc=schism();
+  document.getElementById("aBlood").textContent=Math.floor(S.blood);
+  document.getElementById("aTok").textContent=S.tokens;
+  document.getElementById("aS").textContent=sc.S.toFixed(2);
+  document.getElementById("aStand").textContent=standing(sc.S);
+  document.getElementById("aHeart").textContent=GODS[sc.heart].name;
+
+  if(S.offer){
+    const g=S.offerGod;
+    let h='<p class="reveal-heading">'+GODS[g].name+(S.offerKind==='gift'?' · free patron gift':' · revelation '+S.thresholds[g]+' / 16')+' — choose one</p><div class="revelation-grid">';
+    for(let k=0;k<S.offer.length;k++)h+=cardMarkup(g,S.offer[k],k);
+    h+='</div>';
+    document.getElementById("rows").innerHTML=h;
+    document.querySelectorAll(".offer").forEach(b=>{
+      b.onclick=()=>takeCard(S.offerGod,S.offer[+b.dataset.k]);});
+    return;
+  }
+  let rows="";
+  for(let i=0;i<9;i++){
+    const maxed=S.thresholds[i]>=CFG.maxThreshold;
+    const opening=S.thresholds[i]===0,full=opening&&S.thresholds.filter(Boolean).length>=CFG.maxPledges;
+    const c=costOf(i), tc=pledgeCost(i);
+    const need=tokensNeeded(i);
+    const useTok=opening&&(need>0||S.tokens>0);
+    const spend=need>0?need:(useTok?1:0);
+    const shown=useTok?tc:c;
+    const can=S.blood>=shown&&!maxed&&!full&&S.tokens>=spend&&!S.bases[i].broken, rd=ringDist(i,S.patron);
+    const wr=wrathOf(i);
+    rows+='<div class="row '+(S.thresholds[i]>0?"own ":"")+(can||maxed?"":"no")+'">'+
+      '<span class="nm"><span class="swatch" style="background:'+GODS[i].col+'"></span>'+GODS[i].name+
+      (GODS[i].wt?'&nbsp;<span class="dim" style="font-size:11px">(wt)</span>':'')+
+      (wr>0?'&nbsp;<span style="font-size:11px;color:#e04a4a">wrath '+wr.toFixed(1)+'</span>':'')+
+      (S.thresholds[i]>=CFG.titheFrom?'&nbsp;<span style="font-size:11px;color:#9ec37a">tithe +'+
+        Math.round(CFG.tithePer*(S.thresholds[i]-CFG.titheFrom+1)*100)+'%</span>':'')+'</span>'+
+      '<span class="th">'+(S.heretic?'no patron':rd===0?"patron":"ring "+rd)+(S.bases[i].broken?'<br>cast out':'<br>seat '+Math.floor(S.bases[i].B)+
+        (wr>0?'<br>host '+Math.round(S.muster[i])+'/'+hostTarget(i):''))+'</span>'+
+      '<span class="ct '+(can?"ok":"bad")+'">'+(maxed?"—":shown+" blood")+
+        (spend>0?'<br><span class="dim" style="font-size:10px">'+spend+' token'+(spend>1?'s':'')+'</span>':
+          (opening?'<br><span class="dim" style="font-size:10px">pledge &times;'+CFG.pledgeMult+'</span>':''))+
+      '</span>'+
+      '<button class="buy" data-i="'+i+'" data-tok="'+(useTok?1:0)+'"'+(can?"":" disabled")+'>'+
+      (full?"3 / 3":maxed?"max":(opening?"pledge":"rank "+(S.thresholds[i]+1)))+'</button></div>';
+  }
+  document.getElementById("rows").innerHTML=rows;
+  document.querySelectorAll(".buy").forEach(b=>{
+    b.onclick=()=>buy(+b.dataset.i,b.dataset.tok==="1");
+    // hover shows who this purchase would anger, before you pay
+    b.onmouseenter=()=>{const T=S.thresholds.slice();T[+b.dataset.i]++;drawWheel(T);};
+    b.onmouseleave=()=>drawWheel(S.thresholds);
+  });
+  drawWheel(S.thresholds);
+}
+function wrathAltarT(g,T){if(alliedGod(g))return 0;let w=0;for(let h=0;h<9;h++)w+=T[h]*HOST_K[ringDist(g,h)];return Math.max(0,w+S.spike[g])+heresyWrath(g)+S.heat[g];}
+function drawWheel(T){
+  const sc=schism();
+  const R=118, sv=['<circle cx="170" cy="170" r="118" fill="none" stroke="#3a3230" stroke-dasharray="3 3"/>'];
+  const tri=[0,3,6].map(i=>{
+    const a=i*40*Math.PI/180-Math.PI/2;
+    return (170+Math.cos(a)*R).toFixed(1)+","+(170+Math.sin(a)*R).toFixed(1);
+  }).join(" ");
+  sv.push('<polygon points="'+tri+'" fill="none" stroke="#2e2826"/>');
+  for(let i=0;i<9;i++){
+    const a=i*40*Math.PI/180-Math.PI/2;
+    const x=170+Math.cos(a)*R, y=170+Math.sin(a)*R;
+    const held=T[i]>0, rr=8+Math.min(9,T[i]*1.6), w=wrathAltarT(i,T);
+    if(w>0){                                        // heat around the node: how hard this god is hunting you
+      const hw=Math.min(22,6+w*2);
+      sv.push('<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+(rr+hw).toFixed(1)+
+        '" fill="#e04a4a" fill-opacity="'+Math.min(0.5,0.08+w*0.045).toFixed(2)+'"/>');
+    }
+    sv.push('<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+rr.toFixed(1)+'" fill="'+
+      (held?GODS[i].col:"#1e1a19")+'" stroke="'+(!S.heretic&&i===S.patron?"#e8e2d8":(w>0?"#e04a4a":GODS[i].col+"88"))+
+      '" stroke-width="'+(!S.heretic&&i===S.patron?2:(w>0?1.5:1))+'"/>');
+    if(held)sv.push('<text x="'+x.toFixed(1)+'" y="'+(y+3.5).toFixed(1)+
+      '" text-anchor="middle" font-size="10" fill="#0e0d0c">'+T[i]+'</text>');
+  }
+  if(sc.T>0){
+    const a=sc.heart*40*Math.PI/180-Math.PI/2;
+    sv.push('<line x1="170" y1="170" x2="'+(170+Math.cos(a)*(R-26)).toFixed(1)+'" y2="'+
+      (170+Math.sin(a)*(R-26)).toFixed(1)+'" stroke="#8d837c" stroke-width="1.5"/>');
+  }
+  sv.push('<circle cx="170" cy="170" r="3" fill="#8d837c"/>');
+  document.getElementById("wheel").innerHTML=sv.join("");
+}
+
+function bindTune(id,val,key,f){
+  const el=document.getElementById(id), out=document.getElementById(val);
+  el.value=CFG[key]; out.textContent=f(CFG[key]);
+  el.oninput=()=>{CFG[key]=+el.value;out.textContent=f(CFG[key]);drawAltar();};
+}
+bindTune("tGrowth","vGrowth","growth",v=>"+"+((+v-1)*100).toFixed(1)+"%");
+bindTune("tK","vK","schismK",v=>(+v).toFixed(1));
+bindTune("tRing","vRing","ringStep",v=>(+v).toFixed(2));
+
+// ---------------------------------------------------------------- start
+const pp=document.getElementById("patronPick");
+GODS.forEach(g=>{
+  const b=document.createElement("button");
+  b.className="gbtn";
+  b.innerHTML='<div><span class="swatch" style="background:'+g.col+'"></span>'+g.name+
+    (g.wt?' <span class="dim" style="font-size:11px">(working title)</span>':'')+
+    '</div><div class="w">'+g.weapon+'</div><div class="a">'+g.arche+'</div>'+
+    '<div class="a">hunts you: '+[(g.i+4)%9,(g.i+5)%9].map(k=>GODS[k].name).join(", ")+
+    ' &middot; wary: '+[(g.i+3)%9,(g.i+6)%9].map(k=>GODS[k].name).join(", ")+'</div>';
+  b.onclick=()=>chooseWorld(g.i);
+  pp.appendChild(b);
+});
+document.getElementById("randomPatron").onclick=()=>chooseWorld(Math.floor(Math.random()*9));
+{const p=campaignProgress(),b=document.createElement('button');b.className='gbtn';b.textContent='Heretic · '+p.cleared.filter(Boolean).length+'/9 extermination rites'+(p.cleared.every(Boolean)?' · unlocked':' · locked');b.disabled=!p.cleared.every(Boolean);b.onclick=()=>chooseWorld(6,true);pp.append(b);}
+
+initRevelations();
+initFrontEnd();
+initPlayerStats();
+initCompactHud();
+addEventListener("keydown",e=>{if(e.code==="KeyF"&&!e.repeat)challengeAlly();});
+
+// ---------------------------------------------------------------- loop
+let last=performance.now();
+function loop(t){
+  const dt=Math.min(0.05,(t-last)/1000); last=t;
+  if(S&&S.mode==="play")update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
+
