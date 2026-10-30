@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bestiary sketch</title>
+<style>
+:root{--bg:#111311;--panel:#191c19;--ink:#e8e2d8;--dim:#958f84;--line:#2c312b;--gold:#c9a95a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:18px 20px 14px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:12px 28px;align-items:flex-end}
+h1{font:600 26px/1.1 Georgia,serif;margin:0}
+h2{font:600 18px/1.2 Georgia,serif;margin:0 0 4px}
+.sub{color:var(--dim);max-width:62ch;margin-top:6px}
+.controls{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{background:transparent;color:var(--dim);border:0;padding:5px 10px;font:inherit;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:#2a2f28;color:var(--ink)}
+.lab{color:var(--dim);margin-right:6px}
+main{padding:16px 20px 40px}
+.wrap{overflow-x:auto}
+.grid{display:grid;gap:6px;align-items:stretch;width:max-content}
+.kindhead{color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:0 4px 2px}
+.god{padding:8px 10px;background:var(--panel);border-radius:6px;border-left:3px solid var(--c);width:170px}
+.god b{display:block;font:600 15px Georgia,serif}
+.god span{color:var(--dim);font-size:12px}
+.god em{display:inline-block;margin-top:6px;font-style:normal;font-size:11px;padding:1px 6px;border-radius:4px;background:#ffffff0d;color:var(--ink)}
+.cell{background:var(--ground);border-radius:6px;display:flex;flex-direction:column;align-items:center;overflow:hidden}
+.cell canvas{display:block}
+.cap{width:100%;padding:4px 7px 6px;background:#0d0f0dcc;font-size:11.5px;line-height:1.3}
+.cap b{font-weight:600}
+.cap i{display:block;font-style:normal;color:var(--dim);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;padding:0 4px;border-radius:3px;margin-left:4px;vertical-align:1px}
+.tag.pack{background:#3a3a2a;color:#d8cf9a}.tag.code{background:#1f3a40;color:#9ee0ef}.tag.both{background:#3d2238;color:#efa6d6}
+.field{margin-top:28px}
+#field{display:block;border-radius:6px;width:100%;height:320px;background:var(--ground)}
+.note{color:var(--dim);max-width:80ch;margin:8px 0 0}
+#err{color:#e07a6a;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Bestiary sketch</h1>
+    <div class="sub">Every god's five kinds. Fleshy gods use the packs you own, recolored to one ramp per god. The four abstract gods are drawn in code at the same pixel density, so they sit beside the sprites.</div>
+  </div>
+  <div class="controls">
+    <div><span class="lab">Zoom</span><span class="seg" id="zoom"><button data-v="1">1×</button><button data-v="2" class="on">2×</button><button data-v="3">3×</button></span></div>
+    <div><span class="lab">Pack palette</span><span class="seg" id="pal"><button data-v="ramp" class="on">God ramp</button><button data-v="orig">Original</button></span></div>
+    <div><span class="lab">Ground</span><span class="seg" id="ground"><button data-v="#1d241b" class="on">Grass</button><button data-v="#3b3226">Earth</button><button data-v="#24252b">Crypt</button></span></div>
+    <div><span class="lab">Gwulhorlw &amp; Hueilei</span><span class="seg" id="flesh"><button data-v="code" class="on">Code</button><button data-v="pack">Pack</button></span></div>
+    <div><span class="lab">God rings</span><span class="seg" id="rings"><button data-v="1" class="on">On</button><button data-v="0">Off</button></span></div>
+  </div>
+</header>
+<main>
+  <div id="err"></div>
+  <div class="wrap"><div class="grid" id="grid"></div></div>
+  <section class="field">
+    <h2>In the field, at 1×</h2>
+    <canvas id="field"></canvas>
+    <p class="note">The game's scale. A body has to read here, among sixty others, before detail matters.</p>
+  </section>
+</main>
+<script>
+const TAU=Math.PI*2, TM='../tilemaps/';
+const KINDS=[{k:'minion',r:7,cw:62},{k:'sieger',r:14,cw:92},{k:'grunt',r:9,cw:62},{k:'leader',r:16,cw:92},{k:'titan',r:28,cw:150}];
+const bodyH=r=>Math.max(28,r*3.2);   // the game's rule in prototype.html
+// five stops per god: outline, shadow, base, light, highlight
+const GODS=[
+ {name:'Gwulhorlw',col:'#7a9a3f',arche:'rot · aura',ramp:['#121a0b','#2c3d18','#55762b','#94b64e','#d4e78a']},
+ {name:'The Bottomless',col:'#b8447a',arche:'coveting · contagion',ramp:['#100710','#2a0f25','#5c1d4a','#b8447a','#f2a3cb']},
+ {name:'The Ninth Swarm',col:'#c98a2b',arche:'locusts · consume',ramp:['#1a1006','#4a2e0e','#8a5a1a','#c98a2b','#f4d474']},
+ {name:'Hueilei',col:'#b23a34',arche:'blood · melee',ramp:['#190606','#470e0e','#7c1d1b','#b8403a','#f39276']},
+ {name:'The Cinder Jarl',col:'#e0662a',arche:'fire · melee',ramp:['#1a0a04','#4c1b08','#a33c15','#e86b2c','#ffd677']},
+ {name:'The Woken Star',col:'#d9c05a',arche:'radiance · ranged',ramp:['#2a1c06','#7a5a14','#c49c32','#ecd474','#fffbe2']},
+ {name:"Ik'Thel'The",col:'#5ab5c9',arche:'geometry · ranged',ramp:['#06151b','#123b49','#2a7a8e','#5ab5c9','#d4f7ff']},
+ {name:'First Blasphemy',col:'#8a6fc4',arche:'the word · placed',ramp:['#0d0918','#251b44','#4c3b86','#8a6fc4','#e2d3ff']},
+ {name:'The Pale Ossuary',col:'#8a97a8',arche:'bone · minions',ramp:['#121419','#3a3d47','#6c7482','#b5b3a9','#eee7d4']},
+];
+GODS.forEach(g=>g.rgb=g.ramp.map(h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16))));
+
+// ---------- pack sheets (cell w, cell h, frames, columns) ----------
+const P=(p,fw,fh,n,cols=n,src)=>({p,fw,fh,n,cols,src});
+const PACK={
+ tinyrat:P('EPIC RPG World - Sewers V1.5/Characters/Tiny Rat for the environment/tiny rat-side view-idle.png',47,46,4,4,'Tiny rat · Sewers'),
+ worm1:P('EPIC RPG World Pack - Crypt V.1.6/Characters/Big Worm 1/Big worm - 1-idle-8 frames.png',128,128,8,8,'Big worm · Crypt'),
+ rat:P('EPIC RPG World - Sewers V1.5/Characters/Mutant Rat/mutant rat - idle.png',128,96,8,8,'Mutant rat · Sewers'),
+ orcmage:P('ERW - Grass Land 2.0 v2.1/Characters/orc mage/orc1/orc mage - with hand fx-idle.png',256,256,8,8,'Orc mage · Grass Land 2'),
+ sandworm:P('Epic RPG World - Desert V1.6/characters/sandworm/sandworm-loop.png',224,192,8,8,'Sandworm pit · Desert'),
+ spider:P('EPIC RPG World Pack - Crypt V.1.6/Characters/Spider/Spider-variation1-idle.png',64,64,8,8,'Spider · Crypt'),
+ pot:P('Epic RPG World - The dephs of the Mountain V1.5.1/Characters/Pot Creature/Pot Creature-idle.png',160,128,6,6,'Pot creature · Depths'),
+ viper:P('EPIC RPG World - Sewers V1.5/Characters/Viper/viper-idle.png',96,96,8,8,'Viper · Sewers'),
+ beholder:P('EPIC RPG World - Sewers V1.5/Characters/Beholder/beholder-walk-front view.png',128,96,16,16,'Beholder · Sewers'),
+ female:P('ERW - Sea Adventures (GL 2.0 expansion) V1.5/Characters/female enemy/female-enemy-anims-idle-8frames.png',128,96,8,8,'Female enemy · Sea'),
+ undead:P('EPIC RPG World Pack - Cemetery V 1.6/Characters/undead/Undead-idle animation.png',96,96,8,8,'Undead · Cemetery'),
+ enemy2:P('Epic RPG World - The dephs of the Mountain V1.5.1/Characters/Enemy 2/enemy 2-idle.png',160,128,6,6,'Goblin · Depths'),
+ assassin:P('EPIC RPG World Pack - Old Prison V1.7.1/Characters/Assassin like enemy/Assassin like enemy - animations-idle.png',220,96,10,10,'Cleaver brute · Old Prison'),
+ dboss:P('Epic RPG World - The dephs of the Mountain V1.5.1/Characters/Boss/boss anims-idle.png',351,207,8,8,'Boss · Depths'),
+ troll:P('Epic RPG World - Highlands V1.4.1/characters/Troll/troll-idle.png',288,224,9,3,'Troll · Highlands'),
+ imp:P('Epic RPG World - Volcano V1.6/Characters/imp-like demon/no shadow/imp-idle_9frames.png',192,160,9,9,'Imp · Volcano'),
+ elemental:P('Epic RPG World - Volcano V1.6/Characters/elemental/elemental-idle_8frames.png',256,224,8,8,'Elemental · Volcano'),
+ egolem:P('Epic RPG World - Highlands V1.4.1/characters/Electric Golem/electric-golem-idle.png',352,224,16,4,'Electric golem · Highlands'),
+ brute:P('Epic RPG World - The dephs of the Mountain V1.5.1/Characters/Enemy 1/variation1/enemy 1 var1-idle.png',256,224,8,8,'Horned brute · Depths'),
+ sgolem:P('ERW - Ancient Ruins V 2.3/Characters/Stone  Golem/Stone-golem-idle.png',224,192,8,8,'Stone golem · Ruins'),
+ crow:P('EPIC RPG World Pack - Cemetery V 1.6/Characters/crow/animated crow for the environment-idle1.png',64,64,15,15,'Crow · Cemetery'),
+ mummy:P('Epic RPG World - Desert V1.6/characters/mummy/mummy-idle-walk.png',224,192,8,8,'Mummy · Desert'),
+ cskel:P('EPIC RPG World Pack - Crypt V.1.6/Characters/Skeleton/skeleton-variation1-idle.png',128,128,7,7,'Skeleton · Crypt'),
+ mageskel:P('EPIC RPG World Pack - Old Prison V1.7.1/Characters/Mage Skeleton/Mage Skeleton no shield/Mage Skeleton - animations-idle.png',220,220,8,8,'Mage skeleton · Old Prison'),
+ anubis:P('Epic RPG World - Desert V1.6/characters/anubis/anubis-idle.png',352,256,9,3,'Anubis · Desert'),
+};
+
+// ---------- pixel helpers for code-drawn bodies ----------
+function rng(seed){let s=(seed*2654435761)>>>0||1;return()=>((s=(s*1664525+1013904223)>>>0)/4294967296);}
+function px(g,x,y,c){g.fillStyle=c;g.fillRect(Math.round(x),Math.round(y),1,1);}
+function pline(g,x0,y0,x1,y1,c,b=1){g.fillStyle=c;x0=Math.round(x0);y0=Math.round(y0);x1=Math.round(x1);y1=Math.round(y1);
+ const dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx+dy;
+ for(let i=0;i<400;i++){g.fillRect(x0,y0,b,b);if(x0===x1&&y0===y1)break;const e2=2*e;if(e2>=dy){e+=dy;x0+=sx;}if(e2<=dx){e+=dx;y0+=sy;}}}
+function ell(g,x,y,rx,ry,c,rot=0){g.fillStyle=c;g.beginPath();g.ellipse(x,y,Math.max(.5,rx),Math.max(.5,ry),rot,0,TAU);g.fill();}
+function poly(g,pts,c){g.fillStyle=c;g.beginPath();pts.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.fill();}
+function stroke(g,pts,c,w){g.strokeStyle=c;g.lineWidth=w;g.lineCap='round';g.lineJoin='round';g.beginPath();pts.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.stroke();}
+// a glyph of the First Blasphemy's script: strokes between neighbours on a 3x4 lattice
+const glyphCache={};
+function glyph(seed){if(glyphCache[seed])return glyphCache[seed];const r=rng(seed+11),segs=[];let x=Math.floor(r()*3),y=Math.floor(r()*4);
+ const n=3+Math.floor(r()*3);for(let i=0;i<n;i++){let nx,ny,t=0;do{nx=x+Math.floor(r()*3)-1;ny=y+Math.floor(r()*3)-1;t++;}while((nx<0||nx>2||ny<0||ny>3||(nx===x&&ny===y))&&t<20);
+  if(t<20){segs.push([x,y,nx,ny]);x=nx;y=ny;}if(r()<.3){x=Math.floor(r()*3);y=Math.floor(r()*4);}}
+ return glyphCache[seed]=segs;}
+function drawGlyph(g,seed,x,y,s,c,b=1){for(const[a,b2,c2,d]of glyph(seed))pline(g,x+a*s,y+b2*s,x+c2*s,y+d*s,c,b);}
+// a locust, four pixels long, wings flicker by frame
+function locust(g,R,x,y,dir,flap,tone=3){x=Math.round(x);y=Math.round(y);const s=dir<0?-1:1;
+ px(g,x-s,y,R[tone-1]);px(g,x,y,R[tone]);px(g,x+s,y,R[tone]);px(g,x+2*s,y,R[1]);
+ if(flap)px(g,x,y-1,R[4]);else{px(g,x-s,y-1,R[4]);px(g,x-2*s,y-1,R[tone]);}}
+// a bigger locust for bodies that are only a handful of insects: abdomen, thorax, head, legs, wings
+function bigLocust(g,R,x,y,dir,flap){x=Math.round(x);y=Math.round(y);const s=dir<0?-1:1;
+ [[-3,1],[-2,2],[-1,2],[0,3],[1,3],[2,3]].forEach(([k,t])=>px(g,x+k*s,y,R[t]));px(g,x+2*s,y-1,R[3]);px(g,x+3*s,y,R[1]);
+ px(g,x+(flap?-1:0)*s,y+1,R[1]);px(g,x+(flap?1:2)*s,y+1,R[1]);px(g,x-2*s,y+1,R[1]);
+ if(flap){for(let k=-3;k<=0;k++)px(g,x+k*s,y-1,R[4]);}else{px(g,x-1*s,y-1,R[4]);px(g,x-2*s,y-2,R[4]);px(g,x-3*s,y-3,R[3]);px(g,x,y-2,R[4]);}}
+function rot3(p,ax,ay,az){let[x,y,z]=p;let c=Math.cos(ax),s=Math.sin(ax);[y,z]=[y*c-z*s,y*s+z*c];c=Math.cos(ay);s=Math.sin(ay);[x,z]=[x*c+z*s,-x*s+z*c];c=Math.cos(az);s=Math.sin(az);[x,y]=[x*c-y*s,x*s+y*c];return[x,y,z];}
+function rotAxis(p,k,a){const c=Math.cos(a),s=Math.sin(a),[x,y,z]=p,[u,v,w]=k,d=u*x+v*y+w*z;
+ return[u*d*(1-c)+x*c+(-w*y+v*z)*s,v*d*(1-c)+y*c+(w*x-u*z)*s,w*d*(1-c)+z*c+(-v*x+u*y)*s];}
+const smooth=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t);};
+// metaballs {x,y,r}, shaded onto the ramp by a light from the upper left; the underside rim stays dark
+const hash=(x,y,s=0)=>{let h=(x*374761393+y*668265263+s*2246822519)|0;h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967296;};
+function blobs(g,R,balls,W,H,{mottle=0,sores=0,seed=0,bias=0}={}){const L=[-.55,-.83];
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){let f=0,gx=0,gy=0;
+  for(const b of balls){const dx=x+.5-b.x,dy=y+.5-b.y,d2=dx*dx+dy*dy+.6,k=b.r*b.r/d2;f+=k;gx-=2*k*dx/d2;gy-=2*k*dy/d2;}
+  if(f<1)continue;const n=Math.hypot(gx,gy)||1,nx=-gx/n,ny=-gy/n,depth=Math.min(1,(f-1)/2);
+  const s=.5+.5*(nx*L[0]+ny*L[1])*(1-depth*.5)+depth*.1+(hash(x>>1,y>>1,seed)-.5)*mottle-bias;
+  const pit=f>1.4&&hash(x,y,seed+7)<sores;
+  g.fillStyle=R[pit?(hash(x,y,seed+3)<.5?0:1):f<1.15&&ny>.45?1:s>.86?4:s>.6?3:s>.34?2:1];g.fillRect(x,y,1,1);}}
+// small bumps on the upper side of every ball, so a body stops reading as a smooth slime
+function lumpy(balls,n,seed){const r=rng(seed),out=[...balls];
+ for(const b of balls)for(let i=0;i<n;i++){const a=-Math.PI*(.05+.9*r());out.push({x:b.x+Math.cos(a)*b.r*.85,y:b.y+Math.sin(a)*b.r*.85,r:b.r*(.22+.18*r())});}
+ return out;}
+// a capsule-rigged figure facing right; limb angles are from straight down, positive swings forward
+function fig(g,R,o){const{hx,hy,lean=0,Lt,Wt,hr,Ll,Ls,Wl,La,Lf,Wa,legs,arms}=o;
+ const nx=hx+Math.sin(lean)*Lt,ny=hy-Math.cos(lean)*Lt,sx=hx+Math.sin(lean)*Lt*.82,sy=hy-Math.cos(lean)*Lt*.82;
+ const limb=(x,y,a1,l1,a2,l2,w,c)=>{const kx=x+Math.sin(a1)*l1,ky=y+Math.cos(a1)*l1,ex=kx+Math.sin(a2)*l2,ey=ky+Math.cos(a2)*l2;stroke(g,[[x,y],[kx,ky],[ex,ey]],c,w);return[ex,ey];};
+ const backHand=limb(sx-1,sy,arms[0][0],La,arms[0][1],Lf,Wa,R[1]);
+ limb(hx-1,hy,legs[0][0],Ll,legs[0][1],Ls,Wl,R[1]);
+ stroke(g,[[hx,hy],[nx,ny]],R[2],Wt);stroke(g,[[hx-Wt*.22,hy-1],[nx-Wt*.22,ny+1]],R[3],Math.max(1,Wt*.35));
+ limb(hx+1,hy,legs[1][0],Ll,legs[1][1],Ls,Wl,R[2]);
+ const head=[nx+Math.sin(lean)*hr*.9,ny-Math.cos(lean)*hr*.9-hr*.3];ell(g,head[0],head[1],hr,hr,R[2]);px(g,head[0]-hr*.4,head[1]-hr*.5,R[3]);
+ const frontHand=limb(sx+1,sy,arms[1][0],La,arms[1][1],Lf,Wa,R[3]);
+ ell(g,sx+1,sy-.5,Wt*.42,Wt*.32,R[3]);px(g,sx,sy-Wt*.25,R[4]);
+ return{head,backHand,frontHand,shoulder:[sx,sy]};}
+const runLegs=(p,sw=.6)=>{const L=a=>{const t=sw*Math.sin(a);return[t,t-1.05*Math.max(0,Math.cos(a))];};return[L(p+Math.PI),L(p)];};
+const runArms=(p,sw=.6)=>{const A=a=>{const t=-sw*Math.sin(a);return[t,t+.95];};return[A(p+Math.PI),A(p)];};
+function crest(g,R,[x,y],r){const a1=[],a2=[];for(let a=-2.7;a<=-.45;a+=.25)a1.push([x+Math.cos(a)*(r+1.6),y+Math.sin(a)*(r+1.6)]);
+ for(let a=-2.5;a<=-1.1;a+=.25)a2.push([x+Math.cos(a)*(r+3.2),y+Math.sin(a)*(r+3.2)]);stroke(g,a1,R[4],2);stroke(g,a2,R[3],1.2);}
+// two-bone limb: the joint between a and b, on whichever side is higher
+function knee(ax,ay,bx,by,l1,l2){const dx=bx-ax,dy=by-ay,d=Math.min(Math.hypot(dx,dy),l1+l2-.01)||.01,a=Math.atan2(dy,dx),c=Math.acos(Math.max(-1,Math.min(1,(l1*l1+d*d-l2*l2)/(2*l1*d))));
+ const k1=[ax+Math.cos(a-c)*l1,ay+Math.sin(a-c)*l1],k2=[ax+Math.cos(a+c)*l1,ay+Math.sin(a+c)*l1];return k1[1]<k2[1]?k1:k2;}
+// many-jointed chains (fingers, arms): start arched, then FABRIK toward the target
+function chainInit(root,lens,a0,da){const p=[root];let a=a0,[x,y]=root;for(const l of lens){x+=Math.cos(a)*l;y+=Math.sin(a)*l;p.push([x,y]);a+=da;}return p;}
+function fabrik(root,lens,target,init){const p=init.map(q=>[...q]),n=lens.length;
+ for(let it=0;it<8;it++){p[n]=[...target];for(let i=n-1;i>=0;i--){const dx=p[i][0]-p[i+1][0],dy=p[i][1]-p[i+1][1],d=Math.hypot(dx,dy)||1;p[i]=[p[i+1][0]+dx/d*lens[i],p[i+1][1]+dy/d*lens[i]];}
+  p[0]=[...root];for(let i=0;i<n;i++){const dx=p[i+1][0]-p[i][0],dy=p[i+1][1]-p[i][1],d=Math.hypot(dx,dy)||1;p[i+1]=[p[i][0]+dx/d*lens[i],p[i][1]+dy/d*lens[i]];}}
+ return p;}
+// a line that loses pixels as d goes 0..1, for things crumbling away
+function dline(g,x0,y0,x1,y1,c,d,seed,b=1){g.fillStyle=c;x0=Math.round(x0);y0=Math.round(y0);x1=Math.round(x1);y1=Math.round(y1);
+ const dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx+dy;
+ for(let i=0;i<200;i++){if(hash(i,seed,3)>=d)g.fillRect(x0,y0,b,b);if(x0===x1&&y0===y1)break;const e2=2*e;if(e2>=dy){e+=dy;x0+=sx;}if(e2<=dx){e+=dx;y0+=sy;}}}
+function drip(g,R,x,y,u,k,i,len=9){const t=(u*k+i*.37)%1;px(g,x,y+t*t*len,t<.55?R[3]:R[2]);}
+
+// ---------- the code-drawn bodies: f(g,u,R,W,H), u loops 0..1 ----------
+const BODY={
+ // The Ninth Swarm
+ drone:{W:30,H:22,f(g,u,R,W,H){for(let i=0;i<3;i++){const p=i/3,a=TAU*(u*2+p);
+   const x=W/2+Math.cos(a)*6+Math.sin(TAU*(u*5+p*2))*1.5,y=H/2+Math.sin(a)*3.5+Math.cos(TAU*(u*3+p))*1;
+   bigLocust(g,R,x,y,-Math.sin(a)||1,Math.floor(u*48+i*5)%2);}}},
+ // a rhinoceros beetle: tripod gait, chewing mandibles, the wing cases lift and buzz now and then
+ beetle:{W:56,H:40,f(g,u,R,W,H){const gy=37,bob=Math.sin(TAU*u*4)*.4,open=smooth(.6,.66,u)*(1-smooth(.8,.86,u)),chew=Math.max(0,Math.sin(TAU*u*6)),by=26+bob,cox=[16,24,32];
+   const leg=(i,far)=>{const t=(u*2+((i+(far?1:0))%2)*.5)%1,st=t<.6,x0=cox[i]+(i-1)*5+(far?-2:0);
+    const fx=st?x0+4-8*t/.6:x0-4+8*(t-.6)/.4,fy=gy-(st?0:Math.sin(Math.PI*(t-.6)/.4)*2.5),ax=cox[i]+(far?-1:0),ay=by+2,k=knee(ax,ay,fx,fy,6,8.5);
+    stroke(g,[[ax,ay],k],far?R[1]:R[2],far?1.6:2);stroke(g,[k,[fx,fy]],far?R[1]:R[2],far?1.2:1.5);px(g,fx+(i-1),fy,R[1]);};
+   for(let i=0;i<3;i++)leg(i,true);
+   if(open>0){const fl=Math.floor(u*48)%2;ell(g,16,15+bob,15,fl?4:2.5,R[4],-.35-open*.3);ell(g,18,17+bob,13,fl?2.5:4,R[3],-.2-open*.2);}
+   ell(g,25,by+1,14,4,R[1]);
+   g.save();g.translate(34,by);g.rotate(-open*.35);g.translate(-34,-by);
+   g.beginPath();g.ellipse(23,by,15,12,0,Math.PI,TAU);g.closePath();g.fillStyle=R[2];g.fill();
+   g.beginPath();g.ellipse(21,by-1,10,8,0,Math.PI*1.05,Math.PI*1.75);g.strokeStyle=R[3];g.lineWidth=2.4;g.stroke();
+   for(const k of[4,8]){g.beginPath();g.ellipse(23,by,15-k*.4,12-k,0,Math.PI*1.08,Math.PI*1.95);g.strokeStyle=R[1];g.lineWidth=1;g.stroke();}
+   px(g,15,by-9,R[4]);px(g,16,by-10,R[4]);px(g,18,by-10,R[4]);pline(g,9,by,37,by,R[1]);g.restore();
+   g.beginPath();g.ellipse(39,by+.5,6.5,7,0,Math.PI*.95,TAU+.1);g.closePath();g.fillStyle=R[2];g.fill();px(g,36,by-5,R[4]);px(g,37,by-5,R[3]);
+   stroke(g,[[39,by-5],[44,by-11],[46,by-16],[44,by-18]],R[2],2.6);stroke(g,[[40,by-6],[44,by-12]],R[3],1);
+   ell(g,46,by+2,3.6,3.2,R[1]);px(g,47,by+1,R[4]);px(g,48,by+1,R[0]);
+   stroke(g,[[48,by+3],[51,by+1-chew*1.5],[52,by+3]],R[3],1.4);stroke(g,[[48,by+4],[51,by+5+chew*1.5],[52,by+4]],R[3],1.4);
+   pline(g,47,by,49,by-4,R[1]);px(g,50,by-5,R[2]);
+   for(let i=0;i<3;i++)leg(i,false);}},
+ flock:{W:44,H:32,f(g,u,R,W,H){const r=rng(5),fl=[];for(let i=0;i<8;i++){const a0=r(),ph=r(),rx=4+r()*10,ry=2+r()*6,k=1+Math.floor(r()*2);
+   const a=TAU*(u*k+a0),x=W/2+Math.cos(a)*rx+Math.sin(TAU*(u*3+ph))*2,y=H/2+Math.sin(a)*ry+Math.sin(TAU*(u*2+ph))*1.5;fl.push([x,y,-Math.sin(a)||1,i]);}
+   fl.sort((a,b)=>a[1]-b[1]).forEach(([x,y,d,i])=>bigLocust(g,R,x,y,d,Math.floor(u*48+i*3)%2));}},
+ // a praying mantis: rocks like a leaf, tilts its head, forelegs folded until they snap out
+ mantis:{W:66,H:70,f(g,u,R,W,H){const gy=68,sw=Math.sin(TAU*u)*1.4,strike=smooth(.7,.73,u)*(1-smooth(.76,.86,u)),tilt=Math.sin(TAU*u*2)*.15,tx=27+sw*.5,ty=46;
+   const leg=(ax,ay,fx,l1,l2,c,w)=>{const k=knee(ax,ay,fx,gy,l1,l2);stroke(g,[[ax,ay],k],c,w);stroke(g,[k,[fx,gy]],c,w*.8);};
+   leg(tx-2,ty+1,9,13,16,R[1],1.2);leg(tx,ty,33,12,14,R[1],1.2);
+   g.save();g.translate(tx-1,ty);g.rotate(.1);ell(g,-11,1,12,4.6,R[2]);for(const k of[-17,-13,-9,-5])pline(g,k,-2,k,4,R[1]);
+   ell(g,-11,-2.5,14,2.8,R[3]);pline(g,-24,-2,0,-3,R[4]);g.restore();
+   ell(g,tx,ty,3.6,3.2,R[2]);
+   const nx=tx+9+sw,ny=ty-16;stroke(g,[[tx+1,ty-1],[nx,ny]],R[2],3);stroke(g,[[tx,ty-2],[nx-1,ny]],R[3],1);
+   g.save();g.translate(nx+1,ny-3);g.rotate(tilt);poly(g,[[-6,-3],[6,-3],[1,5]],R[2]);ell(g,-5,-3,2.6,2.6,R[3]);ell(g,5,-3,2.6,2.6,R[3]);
+   px(g,-5,-3,R[0]);px(g,5,-3,R[0]);px(g,-6,-4,R[4]);px(g,4,-4,R[4]);px(g,1,4,R[1]);
+   stroke(g,[[1,-5],[8,-9],[16,-10]],R[1],1);stroke(g,[[3,-4],[11,-6],[19,-5]],R[1],1);g.restore();
+   // raptorial forelegs, folded in prayer below the head until they snap out
+   const fore=(dx,c,w)=>{const s=[tx+(nx-tx)*.7+dx,ty+(ny-ty)*.7],L=(a,b)=>a+(b-a)*strike;
+    const C=[L(s[0]+4,s[0]+8),L(s[1]+7,s[1]+2)],F=[L(C[0]+4,C[0]+11),L(C[1]-11,C[1]-4)],T=[L(F[0]+2,F[0]+9),L(F[1]+8,F[1]+4)];
+    stroke(g,[s,C],c,w+.6);stroke(g,[C,F],c,w+.4);stroke(g,[F,T],c,w*.75);
+    for(let k=1;k<5;k++)px(g,C[0]+(F[0]-C[0])*k/5+1,C[1]+(F[1]-C[1])*k/5+1,R[4]);};
+   fore(-2,R[1],2.2);
+   leg(tx+1,ty+1,41,12,15,R[2],1.5);leg(tx-1,ty+2,18,13,15,R[2],1.5);
+   fore(1,R[3],2.6);}},
+ sphere:{W:96,H:92,f(g,u,R,W,H){const N=300,pts=[],ga=Math.PI*(3-Math.sqrt(5));
+   for(let i=0;i<N;i++){const y=1-2*(i+.5)/N,rr=Math.sqrt(1-y*y),t=ga*i;let p=[Math.cos(t)*rr,y,Math.sin(t)*rr];
+    p=rot3(p,0,TAU*u,0);p=rot3(p,.38,0,0);const j=Math.sin(TAU*(u*3+i*.37))*.05;pts.push([p[0]*(1+j),p[1]*(1+j),p[2],i]);}
+   pts.sort((a,b)=>a[2]-b[2]);const cx=W/2,cy=H/2-2,S=36;
+   for(const[x,y,z,i]of pts){if(z<-.25)px(g,cx+x*S,cy+y*S,R[1]);else locust(g,R,cx+x*S,cy+y*S,z>0?1:-1,Math.floor(u*48+i)%2,z>.5?3:2);}
+   for(let i=0;i<5;i++){const t=(u*2+i/5)%1,a=i*1.9+.4;locust(g,R,cx+Math.cos(a)*(S+2+t*10),cy+Math.sin(a)*(S+2+t*8),Math.cos(a),Math.floor(u*48+i)%2);}}},
+ // The Woken Star
+ mote:{W:22,H:22,outline:false,glow:1,f(g,u,R,W,H){const c=11,y=c+Math.round(Math.sin(TAU*u)*1.2),tw=.5+.5*Math.sin(TAU*u*2),L=2+Math.round(tw*3);
+   for(let k=1;k<=L;k++){const col=k>L-1?R[2]:R[3];px(g,c+k,y,col);px(g,c-k,y,col);px(g,c,y+k,col);px(g,c,y-k,col);}
+   if(tw>.55)for(const[a,b]of[[2,2],[-2,2],[2,-2],[-2,-2]])px(g,c+a,y+b,R[2]);
+   g.fillStyle=R[4];g.fillRect(c-1,y,3,1);g.fillRect(c,y-1,1,3);}},
+ glare:{W:48,H:48,outline:false,glow:1,f(g,u,R,W,H){const c=W/2,cy=H/2+Math.round(Math.sin(TAU*u)*1.5);
+   for(let i=0;i<8;i++){const a=TAU*i/8+.2,L=12+5+3*Math.sin(TAU*(u*2+i/8));stroke(g,[[c+Math.cos(a)*12,cy+Math.sin(a)*12],[c+Math.cos(a)*L,cy+Math.sin(a)*L]],i%2?R[2]:R[3],i%2?1.2:2);}
+   const open=u>.84&&u<.94?Math.abs(Math.cos(Math.PI*(u-.84)/.1))*.9+.1:1;
+   g.save();g.translate(c,cy);g.scale(1,open);g.beginPath();g.moveTo(-14,0);g.quadraticCurveTo(0,-13,14,0);g.quadraticCurveTo(0,13,-14,0);
+   g.fillStyle=R[3];g.fill();g.lineWidth=1.4;g.strokeStyle=R[1];g.stroke();g.clip();
+   const ix=Math.sin(TAU*u)*3;ell(g,ix,0,6,6,R[1]);ell(g,ix,0,4,4,R[2]);ell(g,ix,0,2.2,2.2,R[4]);g.restore();}},
+ comet:{W:50,H:28,outline:false,glow:1,f(g,u,R,W,H){const hx=36,hy=H/2;
+   for(let s=0;s<3;s++){const pts=[];for(let x=hx;x>=4;x-=2){const k=(hx-x)/(hx-4);pts.push([x,hy+(s-1)*4*k+Math.sin(TAU*u*3+x*.35+s)*1.6*k]);}
+    stroke(g,pts,s===1?R[3]:R[2],s===1?2.2:1.3);}
+   for(let i=0;i<7;i++){const t=(u*2+i/7)%1;px(g,hx-4-t*30,hy+Math.sin(i*2.3)*6*t,t<.5?R[4]:R[3]);}
+   ell(g,hx,hy,6.5,6.5,R[3]);ell(g,hx+.5,hy,4.4,4.4,R[4]);}},
+ corona:{W:58,H:58,outline:false,glow:1,f(g,u,R,W,H){const c=W/2;
+   for(let k=0;k<4;k++){const a=TAU*(k/4+u/4);stroke(g,[[c+Math.cos(a)*18,c+Math.sin(a)*18],[c+Math.cos(a)*27,c+Math.sin(a)*27]],R[2],1.3);}
+   for(let i=0;i<16;i++){const a=TAU*(i/16+u/16),L=3+2.2*(.5+.5*Math.sin(TAU*(u*2+i*.3))),w=.18;
+    poly(g,[[c+Math.cos(a-w)*14,c+Math.sin(a-w)*14],[c+Math.cos(a)*(15+L),c+Math.sin(a)*(15+L)],[c+Math.cos(a+w)*14,c+Math.sin(a+w)*14]],R[3]);}
+   ell(g,c,c,15,15,R[4]);ell(g,c,c,13,13,R[0]);g.strokeStyle=R[1];g.lineWidth=1;g.beginPath();g.arc(c,c,9,0,TAU);g.stroke();}},
+ shrine:{W:100,H:100,outline:false,glow:1.4,f(g,u,R,W,H){const c=W/2;
+   for(let i=0;i<12;i++){const a=TAU*(i/12+u/12),L=i%2?36:46,w=i%2?.09:.12;
+    poly(g,[[c+Math.cos(a-w)*24,c+Math.sin(a-w)*24],[c+Math.cos(a)*L,c+Math.sin(a)*L],[c+Math.cos(a+w)*24,c+Math.sin(a+w)*24]],i%2?R[2]:R[3]);}
+   for(let i=0;i<24;i++){const a=TAU*(i/24-u/24);g.fillStyle=R[4];g.fillRect(Math.round(c+Math.cos(a)*40)-1,Math.round(c+Math.sin(a)*40)-1,2,2);}
+   ell(g,c,c,25,25,R[3]);ell(g,c,c,21,21,R[4]);
+   const open=smooth(.2,.36,u)*(1-smooth(.8,.94,u));
+   if(open<.08)pline(g,c-13,c,c+13,c,R[1]);
+   else{g.save();g.translate(c,c);g.scale(1,open);g.beginPath();g.moveTo(-15,0);g.quadraticCurveTo(0,-14,15,0);g.quadraticCurveTo(0,14,-15,0);g.fillStyle=R[1];g.fill();g.clip();
+    ell(g,0,0,6,6,R[2]);ell(g,0,0,3.5,3.5,R[4]);g.restore();}}},
+ // Ik'Thel'The
+ point:{W:24,H:24,f(g,u,R,W,H){const c=12,D=[[1,0],[0,1],[-1,0],[0,-1]],seg=Math.floor(u*4)%4,fr=u*4-Math.floor(u*4);
+   const a=Math.round(fr*12),d=D[seg],e=D[(seg+3)%4];let k=0;
+   for(let i=1;i<=a;i++,k++)g.fillStyle=k<4?R[3]:k<8?R[2]:R[1],g.fillRect(c-d[0]*i,c-d[1]*i,2,2);
+   for(let i=1;i<=12-a;i++,k++)g.fillStyle=k<4?R[3]:k<8?R[2]:R[1],g.fillRect(c-d[0]*a-e[0]*i,c-d[1]*a-e[1]*i,2,2);
+   poly(g,[[c+1,c-4],[c+5,c+1],[c+1,c+5],[c-3,c+1]],R[4]);g.fillStyle=R[3];g.fillRect(c,c,2,2);}},
+ edge:{W:48,H:32,f(g,u,R,W,H){const cx=W/2,cy=H/2-3,th=TAU*u/2,dx=Math.cos(th)*17,dy=Math.sin(th)*6;
+   pline(g,cx-dx,cy-dy+1,cx+dx,cy+dy+1,R[1],2);pline(g,cx-dx,cy-dy,cx+dx,cy+dy,R[3],2);
+   g.fillStyle=R[4];g.fillRect(Math.round(cx-dx)-1,Math.round(cy-dy)-1,4,4);g.fillRect(Math.round(cx+dx)-1,Math.round(cy+dy)-1,4,4);
+   for(let i=0;i<5;i++){const t=(u*2+i/5)%1;g.fillStyle=t<.5?R[3]:R[2];g.fillRect(Math.round(cx-8+i*4),Math.round(cy+5+t*9),2,2);}}},
+ dasher:{W:38,H:38,f(g,u,R,W,H){const c=W/2,sq=.68+.32*Math.cos(TAU*u),tri=(r,a0)=>[0,1,2].map(i=>{const a=a0+TAU*i/3-Math.PI/2;return[c+Math.cos(a)*r*sq,c+Math.sin(a)*r];});
+   const o=tri(14,TAU*u/3),n=tri(6,-TAU*u/3);poly(g,o,R[1]);
+   for(let i=0;i<3;i++){const a=o[i],b=o[(i+1)%3];pline(g,a[0],a[1],b[0],b[1],R[3],2);const p=n[i],q=n[(i+1)%3];pline(g,p[0],p[1],q[0],q[1],R[2]);}
+   g.fillStyle=R[4];for(const[x,y]of o)g.fillRect(Math.round(x)-1,Math.round(y)-1,3,3);g.fillRect(c-1,c-1,2,2);}},
+ tetra:{W:56,H:56,f(g,u,R,W,H){const c=W/2,ax=[1,1,1].map(v=>v/Math.sqrt(3)),S=15;
+   const V=[[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]].map(p=>rot3(rotAxis(p,ax,TAU*u/3),.5,.6,0));
+   for(const f of[[0,1,2],[0,1,3],[0,2,3],[1,2,3]])poly(g,f.map(i=>[c+V[i][0]*S,c+V[i][1]*S]),R[1]);
+   const E=[[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]].sort((a,b)=>(V[a[0]][2]+V[a[1]][2])-(V[b[0]][2]+V[b[1]][2]));
+   for(const[a,b]of E){const z=(V[a][2]+V[b][2])/2;pline(g,c+V[a][0]*S,c+V[a][1]*S,c+V[b][0]*S,c+V[b][1]*S,z<-.3?R[2]:z<.4?R[3]:R[4]);}
+   g.fillStyle=R[4];for(const v of V)g.fillRect(Math.round(c+v[0]*S)-1,Math.round(c+v[1]*S)-1,2,2);}},
+ tesseract:{W:98,H:98,f(g,u,R,W,H){const c=W/2,V=[];
+   for(let i=0;i<16;i++){let x=i&1?1:-1,y=i&2?1:-1,z=i&4?1:-1,w=i&8?1:-1;const a=TAU*u/4,b=TAU*u/4;
+    [x,w]=[x*Math.cos(a)-w*Math.sin(a),x*Math.sin(a)+w*Math.cos(a)];[y,z]=[y*Math.cos(b)-z*Math.sin(b),y*Math.sin(b)+z*Math.cos(b)];
+    const k=1/(2.6-w*.85);let p=rot3([x*k,y*k,z*k],.42,.55,0);V.push([p[0],p[1],p[2],w]);}
+   const E=[];for(let i=0;i<16;i++)for(let b=0;b<4;b++){const j=i^(1<<b);if(j>i)E.push([i,j]);}
+   const S=46;E.sort((p,q)=>(V[p[0]][3]+V[p[1]][3])-(V[q[0]][3]+V[q[1]][3]));
+   for(const[a,b]of E){const w=(V[a][3]+V[b][3])/2;pline(g,c+V[a][0]*S,c+V[a][1]*S,c+V[b][0]*S,c+V[b][1]*S,w<-.5?R[2]:w<.5?R[3]:R[4]);}
+   g.fillStyle=R[4];for(const v of V)if(v[3]>-.2)g.fillRect(Math.round(c+v[0]*S)-1,Math.round(c+v[1]*S)-1,2,2);}},
+ // First Blasphemy
+ letter:{W:22,H:26,f(g,u,R,W,H){const y=4+Math.round(Math.sin(TAU*u)*1.5);ell(g,11,y+9,8,10,R[1]);drawGlyph(g,7+Math.floor(u*3),5,y+2,5,R[4],2);}},
+ gloss:{W:50,H:42,f(g,u,R,W,H){const y=Math.round(Math.sin(TAU*u)*1.5);
+   g.fillStyle=R[3];g.fillRect(4,7+y,42,28);g.fillStyle=R[2];g.fillRect(6,9+y,38,24);g.fillStyle=R[3];g.fillRect(21,4+y,8,3);g.fillStyle=R[1];g.fillRect(6,33+y,38,2);
+   const n=Math.floor(u*13);let qx=10,qy=12+y;
+   for(let i=0;i<12&&i<n;i++){const gx=8+(i%4)*9,gy=12+y+Math.floor(i/4)*7;drawGlyph(g,40+i,gx,gy,2,i===n-1?R[4]:R[0]);qx=gx;qy=gy;}
+   pline(g,qx+4,qy+1,qx+11,qy-9,R[4],2);px(g,qx+10,qy-9,R[3]);px(g,qx+12,qy-8,R[3]);px(g,qx+12,qy-11,R[3]);}},
+ scribe:{W:30,H:44,f(g,u,R,W,H){const b=Math.round(Math.sin(TAU*u*2)*.8),sw=Math.sin(TAU*u)*1.6;
+   poly(g,[[9,15+b],[21,15+b],[26+sw,42],[4+sw,42]],R[2]);poly(g,[[15,15+b],[21,15+b],[26+sw,42],[15+sw,42]],R[1]);pline(g,9,16+b,5+sw,41,R[3]);
+   ell(g,15,11+b,7,7,R[3]);ell(g,16,12+b,4,4.6,R[0]);px(g,14,12+b,R[4]);px(g,17,12+b,R[4]);
+   g.fillStyle=R[0];g.fillRect(10,21+b,9,10);drawGlyph(g,90+Math.floor(u*2),11,22+b,3,R[4]);}},
+ lector:{W:56,H:62,f(g,u,R,W,H){const c=28,hy=20,halo=[];
+   for(let i=0;i<6;i++){const a=TAU*(u+i/6);halo.push([c+Math.cos(a)*17-2,hy-4+Math.sin(a)*5,Math.sin(a),i]);}
+   for(const[x,y,s,i]of halo)if(s<0)drawGlyph(g,200+i,x,y,2,R[2]);
+   poly(g,[[19,24],[37,24],[42,59],[14,59]],R[2]);poly(g,[[28,24],[37,24],[42,59],[28,59]],R[1]);g.fillStyle=R[3];g.fillRect(21,27,2,31);g.fillRect(33,27,2,31);
+   for(let k=0;k<4;k++){px(g,21,31+k*7,R[4]);px(g,34,31+k*7,R[4]);}
+   ell(g,c,hy,8,8,R[3]);ell(g,c+1,hy+1,4.6,5.2,R[0]);px(g,c-1,hy+1,R[4]);px(g,c+2,hy+1,R[4]);
+   g.fillStyle=R[4];g.fillRect(19,33,18,10);g.fillStyle=R[1];g.fillRect(28,33,1,10);
+   for(let k=0;k<3;k++){pline(g,21,35+k*2,26,35+k*2,R[1]);pline(g,30,35+k*2,35,35+k*2,R[1]);}
+   for(const[x,y,s,i]of halo)if(s>=0)drawGlyph(g,200+i,x,y,2,R[4]);}},
+ obelisk:{W:50,H:104,f(g,u,R,W,H){const c=25,base=96,trap=(i)=>{const a=TAU*(u/3+i/3);return[c+Math.cos(a)*21,base+3+Math.sin(a)*4,Math.sin(a)];};
+   for(let i=0;i<3;i++){const[x,y,s]=trap(i);if(s<0){ell(g,x,y,4,1.6,R[2]);drawGlyph(g,301,x-2,y-9,2,R[3]);}}
+   poly(g,[[c-11,base],[c+11,base],[c+7,18],[c-7,18]],R[2]);poly(g,[[c+1,base],[c+11,base],[c+7,18],[c,18]],R[1]);poly(g,[[c-11,base],[c-7,18],[c-5,18],[c-8,base]],R[3]);
+   poly(g,[[c-7,18],[c,5],[c,18]],R[3]);poly(g,[[c,5],[c+7,18],[c,18]],R[2]);
+   g.fillStyle=R[2];g.fillRect(c-15,base,30,5);g.fillStyle=R[3];g.fillRect(c-15,base,30,1);
+   const act=Math.floor(u*9);for(let i=0;i<6;i++)drawGlyph(g,120+i,c-3,24+i*12,3,act>=6?(act%2?R[4]:R[3]):i<=act?(i===act?R[4]:R[3]):R[0]);
+   if(Math.floor(u*8)%2)px(g,c,8,R[4]);
+   for(let i=0;i<3;i++){const[x,y,s]=trap(i);if(s>=0){ell(g,x,y,4,1.6,R[3]);drawGlyph(g,301,x-2,y-9,2,R[4]);}}}},
+ // Gwulhorlw
+ // a slender, quick slime with one weeping eye; it leaves droplets behind
+ g_weeper:{W:28,H:38,f(g,u,R,W,H){const gy=35,st=Math.sin(TAU*u*4),lean=3.6+st*.7,h=1+st*.06;
+   for(let i=0;i<5;i++){const t=(u*4+i/5)%1;if(t<.7)px(g,9-t*10-i,gy,R[i%2?2:3]);}
+   blobs(g,R,[{x:11,y:gy-5,r:5.2-st*.4},{x:12+lean*.4,y:gy-5-7*h,r:3.8},{x:12+lean*.8,y:gy-5-13*h,r:4.3},{x:12+lean*1.2,y:gy-5-19*h,r:2.4},{x:6,y:gy-2,r:2.2}],W,H);
+   const ex=13+lean*.8,ey=gy-5-13*h;ell(g,ex,ey,4.4,4.8,R[1]);ell(g,ex,ey,3.4,3.8,R[4]);ell(g,ex+1,ey+.4,2,2.3,R[1]);px(g,ex+1,ey,R[0]);px(g,ex+1.5,ey+.5,R[0]);px(g,ex+2,ey-1,R[4]);
+   pline(g,ex-3,ey+3.4,ex+3,ey+3.4,R[2]);pline(g,ex-4,ey-4,ex+3,ey-5,R[0]);
+   // the tear never stops
+   const t=(u*4)%1;pline(g,ex,ey+4,ex-lean*.25,gy-4,R[4],2);g.fillStyle=R[4];g.fillRect(Math.round(ex-1-lean*.25*t),Math.round(ey+5+t*(gy-ey-9)),3,3);
+   for(let i=0;i<2;i++)drip(g,R,ex-1-i*2-lean*.3,gy-4,u,4,i,4);
+   px(g,9,gy-8,R[4]);px(g,10,gy-15,R[4]);}},
+ // a teratoma: teeth, hair and bone chips in a lump of flesh; it drags itself on overjointed fingers that snap off and crumble
+ g_teratoma:{W:74,H:46,f(g,u,R,W,H){const gy=43,stride=10,uB=.62,cxAt=v=>28+Math.sin(TAU*v*2)*.8,cx=cxAt(u),cy=31;
+   const L1=[6,6,5.5,5,4.5,4],L2=[5,5,4.5,4,4,3.5],L3=[5.5,5,5,4.5,4.5,4];
+   const tip=(t,plant)=>t<.5?(e=>[plant-stride+stride*e,gy-Math.sin(Math.PI*e)*8])(smooth(0,.5,t)):[plant-stride*(t-.5)/.5,gy];
+   const finger=(root,lens,target)=>fabrik(root,lens,target,chainInit(root,lens,-1.1,.45));
+   const f1At=v=>finger([cxAt(v)+7,cy-6],L1,tip((v*2+.5)%1,58));
+   const drawFinger=(p,c,kn,w0)=>{for(let i=0;i<p.length-1;i++)stroke(g,[p[i],p[i+1]],c,w0-i*.2);
+    for(let i=1;i<p.length-1;i++)ell(g,p[i][0],p[i][1],w0*.6,w0*.6,kn);const e=p[p.length-1],q=p[p.length-2],a=Math.atan2(e[1]-q[1],e[0]-q[0]);
+    g.fillStyle=R[4];g.fillRect(Math.round(e[0]),Math.round(e[1]),2,1);px(g,e[0]-Math.cos(a),e[1]-Math.sin(a),R[4]);};
+   const hair=(x,y,a,n,len)=>{for(let s=0;s<n;s++){const an=a+(s-n/2)*.25;let x0=x,y0=y;
+    for(let k=1;k<=len;k++){const w=Math.sin(TAU*u+s+k*.5)*k*.14,x1=x+Math.cos(an)*k-Math.sin(an)*w,y1=y+Math.sin(an)*k+Math.cos(an)*w;pline(g,x0,y0,x1,y1,s%2?R[0]:R[1]);x0=x1;y0=y1;}}};
+   const teeth=(x,y,n)=>{ell(g,x,y+.5,n*1.5+1.5,2.4,R[0]);for(let i=0;i<n;i++){const h=2+Math.floor(hash(i,n,5)*2);g.fillStyle=R[4];g.fillRect(Math.round(x-n*1.5+i*3+.5),Math.round(y-h+1),2,h);}};
+   // two fingers behind the body never stop pulling
+   drawFinger(finger([cx+6,cy+3],L2,tip((u*2)%1,53)),R[2],R[3],2.4);
+   drawFinger(finger([cx+8,cy-1],L3,tip((u*2+.25)%1,62)),R[2],R[3],2.4);
+   blobs(g,R,lumpy([{x:cx-2,y:cy-1,r:9},{x:cx-9,y:cy+3,r:7},{x:cx+6,y:cy-5,r:5},{x:cx+4,y:cy+6,r:6},{x:cx-6,y:cy-8,r:6},{x:cx-14,y:cy+1,r:4},{x:cx+10,y:cy+2,r:3.5},{x:cx+1,y:cy-11,r:3.5}],3,21),W,H,{mottle:.14,sores:.03,seed:7,bias:.16});
+   hair(cx-6,cy-13,-2.0,6,11);hair(cx-15,cy-3,-2.9,4,9);hair(cx+2,cy-14,-1.4,4,8);
+   teeth(cx-1,cy-6,3);teeth(cx+5,cy+3,4);teeth(cx-9,cy+5,3);
+   const bone=pts=>{poly(g,pts.map(([x,y])=>[x+(x>cx?.6:-.6),y+.6]),R[0]);poly(g,pts,R[4]);};
+   bone([[cx+9,cy-3],[cx+16,cy-7],[cx+10,cy]]);bone([[cx-7,cy-11],[cx-9,cy-19],[cx-4,cy-12]]);bone([[cx-14,cy+3],[cx-21,cy+4],[cx-14,cy+6]]);bone([[cx+2,cy+9],[cx+4,cy+14],[cx+5,cy+9]]);
+   ell(g,cx+3,cy-3,2.2,1.8,R[4]);px(g,cx+3,cy-3,R[0]);px(g,cx+4,cy-3,R[0]);pline(g,cx,cy-5,cx+5,cy-5,R[1]);
+   // an old stub with bone showing
+   drawFinger(finger([cx-2,cy-9],[3.5,3.5],[cx-6,cy-16]),R[3],R[4],2.4);
+   // the front finger: reaches, plants, pulls, snaps at uB, then regrows from a stub
+   const age=(u-uB+1)%1,broken=u>=uB||u<.25;
+   if(!broken)drawFinger(f1At(u),R[3],R[4],2.8);
+   else{const grow=u<.25?smooth(0,.2,u):0,vis=2+4*grow,lens=L1.map((l,i)=>i<Math.floor(vis)?l:i<vis?l*(vis-Math.floor(vis)):0).filter(l=>l>.3);
+    const root=[cx+7,cy-6],a=-.6+Math.sin(TAU*u*5)*.5,sum=lens.reduce((s,l)=>s+l,0),brk=f1At(uB)[2];
+    let tg=[root[0]+Math.cos(a)*sum*.9,root[1]+Math.sin(a)*sum*.9];
+    if(u>=uB){const k=smooth(0,.08,age);tg=[brk[0]+(tg[0]-brk[0])*k,brk[1]+(tg[1]-brk[1])*k];}
+    if(u<.25){const k=smooth(.15,.25,u),s0=tip(0,58);tg=[tg[0]+(s0[0]-tg[0])*k,tg[1]+(s0[1]-tg[1])*k];}
+    drawFinger(finger(root,lens,tg),R[3],R[4],2.8);}
+   // the piece that snapped off, lying in the dirt as it crumbles
+   if(age<.45){const d=age/.45,fall=smooth(0,.05,age),pts=f1At(uB).slice(2).map(([x,y],i)=>[x-age*18,y+(gy-1-i*.3-y)*fall]);
+    for(let i=0;i<pts.length-1;i++)dline(g,pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],i<2?R[3]:R[2],d*1.1,i+1,i<2?2:1);
+    for(let k=0;k<8;k++){const q=pts[k%pts.length],r=hash(k,9,1);if(d>.05&&d<.95)px(g,q[0]+(r-.5)*6,q[1]-d*10*r-1,k%2?R[1]:R[2]);}}}},
+ // a deformed upper body: arms to walk on, arms to grasp with, a mouth full of teeth, acid running off it
+ g_gnasher:{W:48,H:42,f(g,u,R,W,H){const gy=40,bob=Math.sin(TAU*u*4)*.6,cx=19,cy=27+bob,open=.5+.5*Math.sin(TAU*u*3);
+   ell(g,32,gy,5,1.2,R[3]);for(let i=0;i<3;i++){const t=(u*3+i/3)%1;if(t<.25)px(g,27+i*3,gy-1,R[4]);px(g,26+i*4+Math.sin(TAU*(u+i*.3))*1.5,gy-3-t*12,t<.5?R[2]:R[1]);}
+   const arm=(sx,sy,rest,ph,c,w)=>{const t=(u*2+ph)%1,st=t<.6,fx=st?rest+3-6*t/.6:rest-3+6*(t-.6)/.4,fy=gy-(st?0:Math.sin(Math.PI*(t-.6)/.4)*3),k=knee(sx,sy,fx,fy,8,9);
+    stroke(g,[[sx,sy],k],c,w);stroke(g,[k,[fx,fy-1]],c,w*.85);g.fillStyle=c;g.fillRect(Math.round(fx)-2,Math.round(fy)-2,4,2);px(g,fx+2,fy,c);px(g,fx-2,fy,c);px(g,fx,fy,c);ell(g,k[0],k[1],w*.6,w*.6,R[3]);};
+   arm(cx+3,cy+1,34,.5,R[1],3);arm(cx-5,cy+2,12,0,R[1],2.8);
+   for(let i=0;i<2;i++){const ph=TAU*(u*2+i*.4),a=-2.1+i*.55+Math.sin(ph)*.35,b=a+.8+Math.sin(ph+1.2)*.5,s=[cx-3+i*4,cy-7],e=[s[0]+Math.cos(a)*9,s[1]+Math.sin(a)*9],h=[e[0]+Math.cos(b)*8,e[1]+Math.sin(b)*8];
+    stroke(g,[s,e,h],i?R[2]:R[1],2.8);ell(g,e[0],e[1],1.6,1.6,R[3]);for(const k of[-.7,0,.7])pline(g,h[0],h[1],h[0]+Math.cos(b+k)*3.5,h[1]+Math.sin(b+k)*3.5,R[3]);}
+   blobs(g,R,lumpy([{x:cx,y:cy,r:8},{x:cx-6,y:cy-4,r:5},{x:cx+5,y:cy-5,r:5},{x:cx-1,y:cy+5,r:6},{x:cx-9,y:cy+6,r:4}],2,33),W,H,{mottle:.3,sores:.04,seed:9,bias:.1});
+   arm(cx+6,cy+3,38,0,R[2],3.4);arm(cx-2,cy+4,18,.5,R[2],3.2);
+   const mx=cx+6,my=cy-1,mh=2+open*2.5;
+   g.save();g.translate(mx,my);g.rotate(-.12);ell(g,0,0,8,mh+1,R[1]);ell(g,0,0,7,mh,R[0]);
+   for(let i=0;i<7;i++){const x=-6+i*2,l=1+(i*7%3);g.fillStyle=R[4];g.fillRect(x,-mh,1,l+(i%2));g.fillRect(x+1,mh-l,1,l);}g.restore();
+   for(let i=0;i<3;i++){const x=mx-3+i*3,len=2+((u*3+i*.37)%1)*4;pline(g,x,my+mh,x,my+mh+len,R[3]);px(g,x,my+mh+len,R[4]);drip(g,R,x,my+mh+3,u,3,i,gy-my-mh-3);}}},
+ // the titan: a pustulous body slung between long legs; its mouth is full of arms that throw acid
+ g_spider:{W:116,H:98,f(g,u,R,W,H){const gy=95,bob=Math.sin(TAU*u*2)*1.2,cx=50,cy=44+bob,mx=cx+11,my=cy+8;
+   const feet=[[12,1],[32,0],[68,1],[92,0],[4,0],[24,1],[82,0],[106,1]];   // [rest x, gait group]; the first four are the far side
+   const leg=i=>{const[rx,grp]=feet[i],far=i<4,t=(u*2+grp*.5+i*.07)%1,st=t<.7,fx=st?rx+5-10*t/.7:rx-5+10*(t-.7)/.3,fy=gy-(st?0:Math.sin(Math.PI*(t-.7)/.3)*6);
+    const ax=cx-3+(rx-cx)*.1,ay=cy+6,kx=ax+(fx-ax)*.45,ky=3+Math.abs(rx-cx)*.05+(far?3:0)+bob;
+    stroke(g,[[ax,ay],[kx,ky]],far?R[1]:R[2],far?1.8:2.6);stroke(g,[[kx,ky],[fx,fy]],far?R[1]:R[2],far?1.4:2);
+    ell(g,kx,ky,far?1.6:2.2,far?1.6:2.2,far?R[2]:R[3]);if(!far){px(g,kx-1,ky-1,R[4]);ell(g,(kx*2+fx)/3,(ky*2+fy)/3,1.4,1.4,R[3]);}};
+   for(let i=0;i<4;i++)leg(i);
+   blobs(g,R,lumpy([{x:cx,y:cy,r:15},{x:cx-10,y:cy+3,r:9},{x:cx+9,y:cy+4,r:9},{x:cx-3,y:cy-9,r:8},{x:cx+3,y:cy+10,r:8}],3,41),W,H,{mottle:.35,sores:.03,seed:12,bias:.08});
+   const r=rng(43);for(let i=0;i<16;i++){const a=-Math.PI*(.2+.8*r()),d=5+r()*15,x=cx-4+Math.cos(a)*d*1.1,y=cy+Math.sin(a)*d*.95,s=(Math.floor(u*8)+i)%5===0?3:1.6+r();
+    ell(g,x,y,s+1,s+1,R[0]);ell(g,x,y,s,s,R[4]);px(g,x,y,R[3]);}
+   for(let i=4;i<8;i++)leg(i);
+   // the mouth, ringed with teeth
+   ell(g,mx,my,14.5,12.5,R[1]);ell(g,mx,my,13,11,R[0]);
+   for(let k=0;k<18;k++){const th=TAU*k/18;pline(g,mx+Math.cos(th)*13,my+Math.sin(th)*11,mx+Math.cos(th)*9.5,my+Math.sin(th)*8,R[4]);}
+   // arms in the mouth; two of them wind up and throw acid
+   const throws=[{rel:.25,T:[108,88]},{rel:.75,T:[98,92]}];
+   const armChain=(i,base)=>{const th=throws[i],wob=Math.sin(TAU*(u*2+i*.3));let a0=[-.7,.3,-.2,.7,0][i]+wob*.35,curl=.35*Math.sin(TAU*(u*3+i*.2));
+    if(th){const w=(u-th.rel+1)%1,wind=w>.85?smooth(.85,.97,w):0,ext=w<.12?1-smooth(.05,.12,w):0,aim=Math.atan2(th.T[1]-base[1],th.T[0]-base[0])-.5;
+     a0=a0+(Math.PI*.9-a0)*wind;a0=a0+(aim-a0)*ext;curl=curl*(1-wind-ext)+wind*.9;}
+    const p=[base];let a=a0,[x,y]=base;for(const l of[7,6,5]){x+=Math.cos(a)*l;y+=Math.sin(a)*l;p.push([x,y]);a+=curl;}return p;};
+   for(let i=0;i<5;i++){const base=[mx-4+i%2*3,my-5+i*2.2],p=armChain(i,base);
+    for(let s=0;s<3;s++)stroke(g,[p[s],p[s+1]],R[3],2.6-s*.4);for(let s=0;s<2;s++)pline(g,p[s][0],p[s][1]-1,p[s+1][0],p[s+1][1]-1,R[4]);
+    const[hx,hy]=p[3],ha=Math.atan2(hy-p[2][1],hx-p[2][0]);for(const k of[-.7,0,.7])pline(g,hx,hy,hx+Math.cos(ha+k)*3,hy+Math.sin(ha+k)*3,R[4]);
+    const th=throws[i];if(th){const w=(u-th.rel+1)%1;if(w>.85){ell(g,hx,hy,3,3,R[4]);px(g,hx,hy,R[3]);}}}
+   for(const th of throws){const w=(u-th.rel+1)%1;
+    if(w<.18){const s=w/.18,x0=mx+10,y0=my-2,at=q=>[x0+(th.T[0]-x0)*q,y0+(th.T[1]-y0)*q-Math.sin(Math.PI*q)*28];
+     for(let k=3;k>0;k--){const[x,y]=at(Math.max(0,s-k*.06));ell(g,x,y,1.2,1.2,R[3]);}const[x,y]=at(s);ell(g,x,y,3,3,R[4]);px(g,x,y,R[3]);}
+    else if(w<.36){const k=(w-.18)/.18;ell(g,th.T[0],th.T[1],3+k*6,1+k*1.2,R[3]);
+     for(let i=0;i<7;i++){const a=Math.PI*(.1+.8*i/6);g.fillStyle=R[4];g.fillRect(Math.round(th.T[0]+Math.cos(a)*k*9),Math.round(th.T[1]-Math.sin(a)*k*12+k*k*12),1,1);}
+     if(Math.floor(w*60)%2)px(g,th.T[0]-2,th.T[1]-1,R[4]);}}
+   for(let i=0;i<2;i++)drip(g,R,mx-4+i*6,my+12,u,2,i,gy-my-12);}},
+ g_mother:{W:48,H:56,f(g,u,R,W,H){const s=Math.sin(TAU*u)*1.2,c=24,hx=c+s*1.2;
+   for(let i=0;i<7;i++){const t=(u*2+i/7)%1;px(g,c+Math.cos(i*1.7)*17+Math.sin(TAU*(u+i*.3))*1.5,52-t*44,t<.6?R[3]:R[2]);}
+   blobs(g,R,[...lumpy([{x:c,y:46,r:10},{x:c+s*.4,y:37,r:8},{x:c+s*.8,y:28,r:7.5}],3,11),{x:hx,y:18,r:6},{x:c-7+s,y:27,r:4},{x:c+7+s,y:27,r:4},
+    {x:c-10+s,y:33,r:3},{x:c-11+s*.8,y:39,r:2.4},{x:c+10+s,y:33,r:3},{x:c+11+s*.8,y:39,r:2.4}],W,H,{mottle:.5,sores:.05,seed:4});
+   for(const[dx,dy]of[[-4,-5],[0,-7],[4,-5]]){ell(g,hx+dx,18+dy,2,2,R[4]);px(g,hx+dx,18+dy,R[3]);}
+   ell(g,hx-2.5,18,1.6,2,R[0]);ell(g,hx+2.5,18,1.6,2,R[0]);px(g,hx-2.5,18,R[4]);px(g,hx+2.5,18,R[4]);pline(g,hx-2,22,hx+2,22,R[1]);
+   for(const ax of[c-11+s*.8,c+11+s*.8]){const t=(u*3+(ax>c?.5:0))%1;px(g,ax,42+t*t*12,t<.5?R[3]:R[2]);}}},
+ // Hueilei: gladiators made of blood, on a capsule rig
+ h_runner:{W:28,H:30,f(g,u,R,W,H){const p=TAU*u*2,bo=-Math.abs(Math.sin(p))*1.2;
+   for(let i=0;i<4;i++){const t=(u*2+i/4)%1;px(g,13-t*13,28,R[2]);}
+   const f=fig(g,R,{hx:12,hy:20+bo,lean:.5,Lt:6,Wt:6.5,hr:4,Ll:4,Ls:4.2,Wl:3,La:3.6,Lf:3.2,Wa:2.4,legs:runLegs(p,.75),arms:runArms(p,.6)});
+   ell(g,f.shoulder[0]-4,f.shoulder[1]-1,3.4,2.6,R[3]);pline(g,f.shoulder[0]-7,f.shoulder[1]-3,f.shoulder[0]-1,f.shoulder[1]-3,R[4]);
+   px(g,f.head[0]+2,f.head[1],R[4]);for(let i=0;i<3;i++)drip(g,R,9+i*2,21+bo,u,3,i,7);}},
+ h_flayer:{W:46,H:42,f(g,u,R,W,H){const t=(u*2)%1,second=u>=.5;
+   const sl=t<.55?.3+2.3*smooth(0,.55,t):2.6-2.4*smooth(.55,.7,t),front=second?.5:sl,back=second?sl:.5;
+   const f=fig(g,R,{hx:20,hy:29,lean:.75,Lt:9,Wt:8.5,hr:5,Ll:5.5,Ls:6,Wl:3.4,La:5,Lf:5,Wa:2.8,legs:[[-.35,-.1],[.4,.1]],arms:[[back,back+.5],[front,front+.5]]});
+   for(const[h,a]of[[f.backHand,back],[f.frontHand,front]]){const d=a+.5,x2=h[0]+Math.sin(d)*9,y2=h[1]+Math.cos(d)*9,x3=x2+Math.sin(d+1.6)*4,y3=y2+Math.cos(d+1.6)*4;
+    stroke(g,[h,[x2,y2],[x3,y3]],R[1],2.2);stroke(g,[h,[x2,y2],[x3,y3]],R[4],1);}
+   ell(g,f.head[0]+1,f.head[1]+.5,2.6,2.6,R[0]);px(g,f.head[0]+2,f.head[1],R[4]);px(g,f.head[0]+.5,f.head[1],R[4]);
+   for(let i=0;i<3;i++){const tt=(u*1.5+i/3)%1,hop=Math.abs(Math.sin(Math.PI*tt*2))*4;g.fillStyle=R[4];g.fillRect(Math.round(26+i*5),Math.round(39-hop),2,2);}}},
+ h_charger:{W:40,H:34,f(g,u,R,W,H){const p=TAU*u*2,bo=-Math.abs(Math.sin(p));
+   const f=fig(g,R,{hx:16,hy:23+bo,lean:.4,Lt:8,Wt:8,hr:4.6,Ll:4.6,Ls:5,Wl:3.4,La:4,Lf:4,Wa:2.8,legs:runLegs(p,.7),arms:[[-.4+.3*Math.sin(p),.6],[1.3,1.6]]});
+   crest(g,R,f.head,4.6);pline(g,f.head[0]+1,f.head[1],f.head[0]+4,f.head[1],R[4]);
+   const sx=f.frontHand[0]+1.5,sy=f.frontHand[1]-1;ell(g,sx,sy,4.4,6.6,R[3]);ell(g,sx+.5,sy,3.2,5.4,R[1]);ell(g,sx+.5,sy,1.2,1.2,R[4]);
+   for(let i=0;i<2;i++)drip(g,R,sx-1+i*2,sy+5,u,2,i,6);}},
+ h_leader:{W:52,H:64,f(g,u,R,W,H){const raise=smooth(.45,.55,u)*(1-smooth(.75,.9,u)),tilt=.18+raise*.35;
+   const f=fig(g,R,{hx:20,hy:48,lean:.05,Lt:11,Wt:10,hr:5.4,Ll:7.5,Ls:8,Wl:4,La:6,Lf:5,Wa:3.2,legs:[[-.22,-.1],[.28,.12]],arms:[[.15,.1],[2.2-raise*.4,2.9-raise*.3]]});
+   crest(g,R,f.head,5.4);pline(g,f.head[0]+1,f.head[1],f.head[0]+5,f.head[1],R[4]);
+   const[hx,hy]=f.frontHand,tx=hx+Math.sin(tilt)*26,ty=hy-Math.cos(tilt)*26;
+   pline(g,hx-Math.sin(tilt)*6,hy+Math.cos(tilt)*6,tx,ty,R[1],2);
+   for(let c=0;c<13;c++){const wave=Math.sin(TAU*u*2-c*.55)*1.3*(c/12),x=tx+c-1,y0=ty+2+wave;
+    for(let r=0;r<15;r++){g.fillStyle=r%5===0?R[2]:R[3];g.fillRect(Math.round(x),Math.round(y0+r),1,1);}
+    if(c%3===1){const t=(u*2+c*.21)%1;px(g,x,y0+16+t*t*8,R[3]);}}
+   pline(g,tx-1,ty+1,tx+13,ty+1,R[4]);}},
+ h_arena:{W:108,H:90,f(g,u,R,W,H){const c=50;
+   ell(g,c+4,80,44,9,R[1]);const rp=(u*2)%1;g.strokeStyle=R[2];g.lineWidth=1;g.beginPath();g.ellipse(c+4,80,8+rp*34,2+rp*7,0,0,TAU);g.stroke();
+   const up=smooth(.25,.5,u)*(1-smooth(.55,.6,u)),down=smooth(.55,.6,u)*(1-smooth(.85,1,u));
+   const fist=[c+33+up*2,62-up*48+down*10],sh=[c+14,34],bsh=[c-14,34],bf=[c-26,64],br=1+.03*Math.sin(TAU*u*2);
+   const el=[sh[0]+12-up*2,sh[1]+12-up*24+down*4];
+   stroke(g,[bsh,[c-25,48],bf],R[1],9);ell(g,bf[0],bf[1],6,5.5,R[1]);
+   blobs(g,R,[{x:c,y:66,r:10},{x:c,y:55,r:12*br},{x:c,y:42,r:14*br},{x:c-12,y:34,r:8},{x:c+12,y:34,r:8}],W,H,{mottle:.25,seed:6});
+   stroke(g,[[c,34],[c+1,27]],R[1],6);ell(g,c+1,22,7.5,8,R[2]);ell(g,c-1,19,3.5,3,R[3]);
+   for(let k=0;k<3;k++){pline(g,c-8,40+k*4,c-2,42+k*4,R[1]);pline(g,c+2,42+k*4,c+8,40+k*4,R[1]);}
+   crest(g,R,[c+1,22],7.5);pline(g,c-4,23,c-1,24,R[4]);pline(g,c+3,24,c+6,23,R[4]);
+   stroke(g,[sh,el,fist],R[2],10);stroke(g,[[sh[0]-1,sh[1]-2],[el[0]-1,el[1]-2]],R[3],3);
+   ell(g,fist[0],fist[1],7,6.5,R[2]);ell(g,fist[0]-2,fist[1]-2,3,2.5,R[3]);ell(g,sh[0],sh[1]-1,7,5.5,R[3]);px(g,sh[0]-2,sh[1]-4,R[4]);
+   if(u>.58&&u<.8){const k=(u-.58)/.22;g.strokeStyle=R[4];g.lineWidth=1.4;g.beginPath();g.ellipse(fist[0],78,4+k*18,1+k*4,0,0,TAU);g.stroke();
+    for(let i=0;i<6;i++){const a=Math.PI*(.15+.7*i/5);g.fillStyle=R[3];g.fillRect(Math.round(fist[0]+Math.cos(a)*k*16),Math.round(74-Math.sin(a)*k*20+k*k*14),2,2);}}
+   for(let i=0;i<2;i++)drip(g,R,bf[0]-2+i*4,bf[1]+6,u,2,i,10);}},
+ // The Bottomless: a pack sprite with code-drawn tentacles behind her
+ tentacles:{W:80,H:70,f(g,u,R,W,H){const rx=W/2,ry=H-26;
+   for(let i=0;i<8;i++){const a0=-Math.PI+.25+i*(Math.PI-.5)/7,len=26+(i%3)*5,pts=[];let x=rx,y=ry,a=a0;
+    for(let s=0;s<=12;s++){const t=s/12;pts.push([x,y]);a=a0+Math.sin(TAU*(u+i*.13)-t*3.2)*.55*t;x+=Math.cos(a)*len/12;y+=Math.sin(a)*len/12;}
+    for(let s=0;s<12;s++)stroke(g,[pts[s],pts[s+1]],R[1],3.6*(1-s/12)+1);
+    for(let s=3;s<11;s+=2)px(g,pts[s][0],pts[s][1]-1,R[3]);}}},
+};
+
+// ---------- the roster, wheel order ----------
+const pk=(name,id,alt)=>({name,pack:id,alt}),cd=(name,id)=>({name,code:id});
+const ROSTER=[
+ [pk('Weeper','tinyrat','g_weeper'),pk('Teratoma','worm1','g_teratoma'),pk('Gnasher','rat','g_gnasher'),pk('Leader · tbd','orcmage','g_mother'),pk('Spider-maw','sandworm','g_spider')],
+ [pk('Hand','spider'),pk('Mouth','pot'),pk('Suitor','viper'),pk('Chaperone','beholder'),{name:'The Bride',pack:'female',over:'tentacles'}],
+ [cd('Drone','drone'),cd('Beetle','beetle'),cd('Flock','flock'),cd('Mantis','mantis'),cd('The Sphere','sphere')],
+ [pk('Tithe-runner','undead','h_runner'),pk('Flayer','enemy2','h_flayer'),pk('Charger','assassin','h_charger'),pk('Leader','dboss','h_leader'),pk('The Arena','troll','h_arena')],
+ [pk('Ember','imp'),pk('Brand','elemental'),pk('Forge thrall','egolem'),pk('Hearth-thane','brute'),pk('The Sword','sgolem')],
+ [cd('Mote','mote'),cd('Glare','glare'),cd('Comet','comet'),cd('Corona','corona'),cd('The Shrine','shrine')],
+ [cd('Point','point'),cd('Edge','edge'),cd('Dasher','dasher'),cd('Leader','tetra'),cd('The Object','tesseract')],
+ [cd('Letter','letter'),cd('Gloss','gloss'),cd('Scribe','scribe'),cd('Lector','lector'),cd('The Obelisk','obelisk')],
+ [pk('Knuckle','crow'),pk('Jaw','mummy'),pk('Pallbearer','cskel'),pk('Sexton','mageskel'),pk('The Tower','anubis')],
+];
+
+// ---------- baking ----------
+const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
+const ctx=c=>c.getContext('2d',{willReadFrequently:true});
+function loadImg(src){return new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error('missing '+src));i.src=src;});}
+function trim(img,{fw,fh,n,cols}){const c=mk(img.width,img.height),x=ctx(c);x.drawImage(img,0,0);const d=x.getImageData(0,0,c.width,c.height).data;
+ let x0=1e9,y0=1e9,x1=-1,y1=-1;
+ for(let k=0;k<n;k++){const ox=(k%cols)*fw,oy=Math.floor(k/cols)*fh;
+  for(let y=0;y<fh;y++)for(let xx=0;xx<fw;xx++)if(d[((oy+y)*c.width+ox+xx)*4+3]>8){if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(y<y0)y0=y;if(y>y1)y1=y;}}
+ const w=x1-x0+1,h=y1-y0+1,s=mk(w*n,h),sx=ctx(s);
+ for(let k=0;k<n;k++){const ox=(k%cols)*fw,oy=Math.floor(k/cols)*fh;sx.drawImage(img,ox+x0,oy+y0,w,h,k*w,0,w,h);}
+ return{c:s,w,h,n,fps:8};}
+// gradient map: luminance -> the god's ramp; near-black stays outline
+function recolor(st,god,keep=.1){const c=mk(st.c.width,st.c.height),x=ctx(c);x.drawImage(st.c,0,0);
+ const im=x.getImageData(0,0,c.width,c.height),d=im.data,R=god.rgb,L=[];
+ const lum=i=>.299*d[i]+.587*d[i+1]+.114*d[i+2];
+ for(let i=0;i<d.length;i+=4)if(d[i+3]>8){const l=lum(i);if(l>36)L.push(l);}
+ L.sort((a,b)=>a-b);const lo=L[Math.floor(L.length*.03)]||40,hi=L[Math.floor(L.length*.985)]||220;
+ for(let i=0;i<d.length;i+=4){if(d[i+3]<=8)continue;const l=lum(i);let col;
+  if(l<=36)col=R[0];else{const p=1+Math.min(1,Math.max(0,(l-lo)/(hi-lo)))*3,k=Math.min(3,Math.floor(p)),f=p-k;col=[0,1,2].map(j=>R[k][j]+(R[k+1][j]-R[k][j])*f);}
+  for(let j=0;j<3;j++)d[i+j]=col[j]*(1-keep)+d[i+j]*keep;d[i+3]=d[i+3]>100?255:0;}
+ x.putImageData(im,0,0);return{...st,c};}
+// snap a soft canvas drawing to the ramp, hard alpha, 1px outline
+function pixelize(c,god,outline){const x=ctx(c),W=c.width,H=c.height,im=x.getImageData(0,0,W,H),d=im.data,R=god.rgb,m=new Uint8Array(W*H);
+ for(let p=0,i=0;p<W*H;p++,i+=4){if(d[i+3]<96){d[i+3]=0;continue;}let best=0,bd=1e9;
+  for(let k=0;k<5;k++){const e=(d[i]-R[k][0])**2+(d[i+1]-R[k][1])**2+(d[i+2]-R[k][2])**2;if(e<bd){bd=e;best=k;}}
+  d[i]=R[best][0];d[i+1]=R[best][1];d[i+2]=R[best][2];d[i+3]=255;m[p]=1;}
+ if(outline)for(let y=0;y<H;y++)for(let xx=0;xx<W;xx++){const p=y*W+xx;if(m[p])continue;
+  if((xx>0&&m[p-1])||(xx<W-1&&m[p+1])||(y>0&&m[p-W])||(y<H-1&&m[p+W])){const i=p*4;d[i]=R[0][0];d[i+1]=R[0][1];d[i+2]=R[0][2];d[i+3]=255;}}
+ x.putImageData(im,0,0);}
+function bake(b,god,n=48,loop=4){const s=mk(b.W*n,b.H),sx=ctx(s);
+ for(let k=0;k<n;k++){const a=mk(b.W,b.H),g=ctx(a);b.f(g,k/n,god.ramp,b.W,b.H);pixelize(a,god,b.outline!==false);sx.drawImage(a,k*b.W,0);}
+ return{c:s,w:b.W,h:b.H,n,fps:n/loop,glow:b.glow||0};}
+function bakeOver(st,b,god,n=16){const s=mk(b.W*n,b.H),sx=ctx(s);
+ for(let k=0;k<n;k++){const a=mk(b.W,b.H),g=ctx(a);b.f(g,k/n,god.ramp,b.W,b.H);pixelize(a,god,true);
+  const f=Math.floor(k*st.n/n)%st.n;g.drawImage(st.c,f*st.w,0,st.w,st.h,Math.round((b.W-st.w)/2),b.H-st.h,st.w,st.h);sx.drawImage(a,k*b.W,0);}
+ return{c:s,w:b.W,h:b.H,n,fps:8};}
+
+// ---------- drawing a body the way prototype.html does ----------
+function drawBody(cx,body,god,r,x,y,t,flip,rings){
+ cx.fillStyle='#00000055';cx.beginPath();cx.ellipse(x,y+r*.4,r*1.05,r*.45,0,0,TAU);cx.fill();
+ if(rings){cx.strokeStyle=god.col;cx.lineWidth=1.5;cx.beginPath();cx.ellipse(x,y+r*.4,r*1.2,r*.55,0,0,TAU);cx.stroke();cx.lineWidth=1;}
+ // scale to the kind's height, but let wide bodies count their width so a flat rat doesn't balloon
+ const H=bodyH(r),s=H/Math.max(body.h,body.w*.75),w=body.w*s,h=body.h*s,f=Math.floor(t*body.fps)%body.n,by=y+r*.7;
+ if(body.glow){const g=cx.createRadialGradient(x,by-h/2,0,x,by-h/2,h*.75*body.glow);g.addColorStop(0,god.ramp[3]+'55');g.addColorStop(1,god.ramp[3]+'00');
+  cx.save();cx.globalCompositeOperation='lighter';cx.fillStyle=g;cx.fillRect(x-h,by-h*1.5,h*2,h*2);cx.restore();}
+ cx.save();cx.imageSmoothingEnabled=false;cx.translate(x,by);if(flip)cx.scale(-1,1);cx.drawImage(body.c,f*body.w,0,body.w,body.h,-w/2,-h,w,h);cx.restore();}
+
+const state={zoom:2,pal:'ramp',ground:'#1d241b',rings:true,flesh:'code'};
+const cells=[];
+const useAlt=e=>state.flesh==='code'&&e.altBaked;
+function bodyFor(gi,ki){const e=ROSTER[gi][ki];return e.code?e.baked:useAlt(e)?e.altBaked:state.pal==='ramp'?e.ramp:e.orig;}
+function buildGrid(){const grid=document.getElementById('grid');grid.innerHTML='';cells.length=0;
+ grid.style.gridTemplateColumns='auto '+KINDS.map(k=>k.cw*state.zoom+'px').join(' ');
+ grid.append(Object.assign(document.createElement('div')));
+ for(const k of KINDS){const h=document.createElement('div');h.className='kindhead';h.textContent=k.k;grid.append(h);}
+ GODS.forEach((god,gi)=>{const row=ROSTER[gi],kind=row.some(useAlt)?'drawn in code':row.some(e=>e.over)?'pack + code':row[0].code?'drawn in code':'pack sprites';
+  const g=document.createElement('div');g.className='god';g.style.setProperty('--c',god.col);
+  g.innerHTML=`<b>${god.name}</b><span>${god.arche}</span><br><em>${kind}</em>`;grid.append(g);
+  KINDS.forEach((k,ki)=>{const e=row[ki],cell=document.createElement('div');cell.className='cell';cell.style.setProperty('--ground',state.ground);
+   const cv=document.createElement('canvas'),z=state.zoom,dpr=window.devicePixelRatio||1,W=k.cw,H=Math.ceil(bodyH(KINDS[4].r)+26);
+   cv.width=Math.round(W*z*dpr);cv.height=Math.round(H*z*dpr);cv.style.width=W*z+'px';cv.style.height=H*z+'px';
+   const coded=e.code||useAlt(e),tag=e.over?'<span class="tag both">pack + code</span>':coded?'<span class="tag code">code</span>':'<span class="tag pack">pack</span>';
+   const src=coded?'drawn in code':PACK[e.pack].src+(e.over?' + tentacles':'');
+   const cap=document.createElement('div');cap.className='cap';cap.innerHTML=`<b>${e.name}</b>${tag}<i title="${src}">${src}</i>`;
+   cell.append(cv,cap);grid.append(cell);cells.push({cv,gi,ki,W,H,z,dpr});});});}
+function drawCells(t){for(const c of cells){const x=c.cv.getContext('2d'),k=KINDS[c.ki];x.setTransform(c.z*c.dpr,0,0,c.z*c.dpr,0,0);x.clearRect(0,0,c.W,c.H);
+  drawBody(x,bodyFor(c.gi,c.ki),GODS[c.gi],k.r,c.W/2,c.H-8-k.r*.7,t+c.gi*.17,false,state.rings);}}
+
+// ---------- the field ----------
+const field=document.getElementById('field');let mobs=[];
+function seedField(){const W=field.clientWidth,H=320;mobs=[];const r=rng(3);
+ const weights=[['minion',5],['grunt',8],['sieger',2],['leader',1]];
+ for(let i=0;i<64;i++){let pick=r()*16,ki=0;for(const[k,w]of weights){if(pick<w){ki=KINDS.findIndex(q=>q.k===k);break;}pick-=w;}
+  mobs.push({gi:Math.floor(r()*9),ki,x:20+r()*(W-40),y:40+r()*(H-60),a:r()*TAU,sp:12+r()*18,ph:r()});}
+ for(let i=0;i<3;i++)mobs.push({gi:[2,6,7][i],ki:4,x:W*(.2+i*.3),y:200,a:r()*TAU,sp:6,ph:r()});}
+function drawField(t,dt){const W=field.clientWidth,H=320,dpr=window.devicePixelRatio||1;if(field.width!==Math.round(W*dpr)){field.width=Math.round(W*dpr);field.height=H*dpr;}
+ const x=field.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.fillStyle=state.ground;x.fillRect(0,0,W,H);
+ for(const m of mobs){m.a+=Math.sin(t*.7+m.ph*9)*dt*.8;m.x+=Math.cos(m.a)*m.sp*dt;m.y+=Math.sin(m.a)*m.sp*dt*.7;
+  if(m.x<16||m.x>W-16)m.a=Math.PI-m.a;if(m.y<36||m.y>H-14)m.a=-m.a;m.x=Math.min(W-16,Math.max(16,m.x));m.y=Math.min(H-14,Math.max(36,m.y));}
+ for(const m of[...mobs].sort((a,b)=>a.y-b.y))drawBody(x,bodyFor(m.gi,m.ki),GODS[m.gi],KINDS[m.ki].r,m.x,m.y,t+m.ph,Math.cos(m.a)<0,state.rings);}
+
+// ---------- controls ----------
+function seg(id,fn){const el=document.getElementById(id);el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+ el.querySelectorAll('button').forEach(q=>q.classList.toggle('on',q===b));fn(b.dataset.v);});}
+seg('zoom',v=>{state.zoom=+v;buildGrid();});
+seg('pal',v=>{state.pal=v;});
+seg('ground',v=>{state.ground=v;document.querySelectorAll('.cell').forEach(c=>c.style.setProperty('--ground',v));});
+seg('rings',v=>{state.rings=v==='1';});
+seg('flesh',v=>{state.flesh=v;buildGrid();});
+
+(async()=>{
+ const ids=Object.keys(PACK),imgs={};const errs=[];
+ await Promise.all(ids.map(id=>loadImg(TM+PACK[id].p).then(i=>imgs[id]=i).catch(e=>errs.push(e.message))));
+ if(errs.length)document.getElementById('err').textContent=errs.join('\n');
+ const trimmed={};for(const id of ids)if(imgs[id])trimmed[id]=trim(imgs[id],PACK[id]);
+ ROSTER.forEach((row,gi)=>row.forEach(e=>{const god=GODS[gi];
+  const bt=id=>{const b=bake(BODY[id],god);return{...trim(b.c,{fw:b.w,fh:b.h,n:b.n,cols:b.n}),fps:b.fps,glow:b.glow};};
+  if(e.code){e.baked=bt(e.code);return;}
+  if(e.alt)e.altBaked=bt(e.alt);
+  const st=trimmed[e.pack];if(!st){e.orig=e.ramp=bake({W:20,H:20,f:(g,u,R)=>ell(g,10,10,8,8,R[3])},god,1,1);return;}
+  e.orig=st;e.ramp=recolor(st,god);
+  if(e.over){e.ramp=bakeOver(e.ramp,BODY[e.over],god);e.orig=bakeOver(st,BODY[e.over],god);}}));
+ buildGrid();seedField();
+ let last=performance.now();
+ (function frame(now){const t=now/1000,dt=Math.min(.05,(now-last)/1000);last=now;drawCells(t);drawField(t,dt);requestAnimationFrame(frame);})(last);
+ window.addEventListener('resize',()=>{seedField();});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<meta charset="utf-8">
+<title>Rot Survivors in Brief</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ground:#e4dfd5; --panel:#ece8e0; --rule:#c6bfb3; --rule2:#d8d2c6;
+    --text:#1c1a18; --dim:#6f6660; --faint:#8d837c; --accent:#9c2b2b; --mono-bg:#dcd6ca;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0e0d0c; --panel:#161413; --rule:#3a3230; --rule2:#2a2422;
+      --text:#e8e2d8; --dim:#8d837c; --faint:#6f6660; --accent:#b23a34; --mono-bg:#1c1a18;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0e0d0c; --panel:#161413; --rule:#3a3230; --rule2:#2a2422;
+    --text:#e8e2d8; --dim:#8d837c; --faint:#6f6660; --accent:#b23a34; --mono-bg:#1c1a18;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--text);font-family:"Spectral",Georgia,"Times New Roman",serif;font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:3px}
+  a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  .wrap{max-width:960px;margin:0 auto;padding:44px 28px 90px}
+  @media (max-width:600px){.wrap{padding:28px 16px 64px}}
+  h1,h2,h3,.eyebrow,.k,.stat b,.god b,.god .n{font-family:"Barlow Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif}
+  .eyebrow{font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+  h1{font-size:clamp(56px,9vw,96px);line-height:.9;font-weight:700;letter-spacing:-.015em;margin:10px 0 18px;text-wrap:balance}
+  h2{font-size:28px;line-height:1.05;font-weight:600;margin:54px 0 16px;padding-top:16px;border-top:1px solid var(--rule);text-wrap:balance}
+  h3{font-size:21px;line-height:1.15;font-weight:600;margin:0 0 6px;text-wrap:balance}
+  p{margin:0 0 14px;max-width:66ch}
+  strong{font-weight:600} em{font-style:italic}
+  .dim{color:var(--dim)}
+
+  .hero{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:36px;align-items:center;padding-bottom:28px;border-bottom:1px solid var(--rule)}
+  @media (max-width:680px){.hero{grid-template-columns:1fr;gap:20px}}
+  .hero svg{width:100%;height:auto;display:block}
+  .chord{stroke:var(--dim);stroke-opacity:.4;stroke-width:1.4}
+  .node{stroke:var(--ground);stroke-width:3}
+  .anchor{stroke:var(--text);stroke-width:2.5;fill:none}
+  .thesis{font-size:21px;line-height:1.45;max-width:34ch}
+  .thesis strong{color:var(--accent)}
+  .quiet{font-size:15px;color:var(--dim);margin-top:14px;max-width:44ch}
+
+  .beats{list-style:none;margin:0;padding:0}
+  .beats li{display:grid;grid-template-columns:52px 1fr;gap:0 16px;padding:14px 0;border-top:1px solid var(--rule2)}
+  .beats li:first-child{border-top:0}
+  .k{font-size:34px;font-weight:700;color:var(--accent);line-height:1;padding-top:2px}
+  .beats p{margin:0}
+
+  .diff{display:grid;grid-template-columns:1fr 1fr;gap:20px 32px}
+  @media (max-width:680px){.diff{grid-template-columns:1fr}}
+  .diff p{margin:0;font-size:16px}
+
+  .gods{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;list-style:none;margin:0;padding:0}
+  @media (max-width:680px){.gods{grid-template-columns:1fr 1fr}}
+  @media (max-width:440px){.gods{grid-template-columns:1fr}}
+  .god{padding:12px 14px;background:var(--panel);border-radius:3px;border-top:3px solid var(--c)}
+  .god .n{font-family:"IBM Plex Mono",Consolas,monospace;font-size:12px;color:var(--faint)}
+  .god b{display:block;font-size:19px;font-weight:600;line-height:1.1;margin:2px 0 4px}
+  .god span{display:block;font-size:14px;color:var(--dim);line-height:1.4}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:0 0 18px}
+  .stat{padding:12px 14px;background:var(--panel);border-radius:3px}
+  .stat b{display:block;font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .stat span{font-size:13px;color:var(--dim);letter-spacing:.04em}
+  footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--rule);font-size:14px;color:var(--dim)}
+</style>
+
+<div class="wrap">
+<section class="hero">
+  <svg viewBox="0 0 500 500" role="img" aria-label="Nine gods on a ring; chords join each to its two antipodes.">
+    <g class="chord">
+      <line x1="250" y1="80" x2="308.1" y2="409.7"/><line x1="359.3" y1="119.8" x2="191.9" y2="409.7"/>
+      <line x1="417.4" y1="220.5" x2="102.8" y2="335"/><line x1="397.2" y1="335" x2="82.6" y2="220.5"/>
+      <line x1="308.1" y1="409.7" x2="140.7" y2="119.8"/><line x1="191.9" y1="409.7" x2="250" y2="80"/>
+      <line x1="102.8" y1="335" x2="359.3" y2="119.8"/><line x1="82.6" y1="220.5" x2="417.4" y2="220.5"/>
+      <line x1="140.7" y1="119.8" x2="397.2" y2="335"/>
+    </g>
+    <circle class="anchor" cx="250" cy="80" r="31"/><circle class="anchor" cx="397.2" cy="335" r="31"/><circle class="anchor" cx="102.8" cy="335" r="31"/>
+    <circle class="node" cx="250" cy="80" r="23" fill="#7a9a3f"/>
+    <circle class="node" cx="359.3" cy="119.8" r="23" fill="#b8447a"/>
+    <circle class="node" cx="417.4" cy="220.5" r="23" fill="#c98a2b"/>
+    <circle class="node" cx="397.2" cy="335" r="23" fill="#b23a34"/>
+    <circle class="node" cx="308.1" cy="409.7" r="23" fill="#e0662a"/>
+    <circle class="node" cx="191.9" cy="409.7" r="23" fill="#d9c05a"/>
+    <circle class="node" cx="102.8" cy="335" r="23" fill="#5ab5c9"/>
+    <circle class="node" cx="82.6" cy="220.5" r="23" fill="#8a6fc4"/>
+    <circle class="node" cx="140.7" cy="119.8" r="23" fill="#8a97a8"/>
+  </svg>
+  <div>
+    <div class="eyebrow">A survivors‑like about the end of a world</div>
+    <h1>Rot Survivors</h1>
+    <p class="thesis">Nine gods are eating this world. You are one of many priests. <strong>Blood is the only currency</strong>, there is a finite amount of it, and every favor you buy from one god angers the gods across the wheel from it.</p>
+    <p class="quiet">Horror‑adjacent, played straight. Auto‑firing weapons, a horde, a thumbstick, twenty‑odd minutes a run. Playable prototype, one file.</p>
+  </div>
+</section>
+
+<h2>What you do</h2>
+<ol class="beats">
+  <li><span class="k">1</span><p><strong>Choose a patron.</strong> You wake at its seat holding its weapon. Two gods across the wheel are hunting you before you take a step.</p></li>
+  <li><span class="k">2</span><p><strong>Take blood.</strong> Kill what comes for you and walk over what it drops. Stand in a settlement and bleed it yourself. Hunt the fat carriers and the ripe blood no god can take.</p></li>
+  <li><span class="k">3</span><p><strong>Spend it at the altar</strong> on thresholds of favor in any of the nine. A weapon at the first, cards after, a passive at the fourth, and from the fifth a tithe on your enemies' blood. Every purchase raises the price of the next and shows you, before you pay, who it will anger.</p></li>
+  <li><span class="k">4</span><p><strong>Live with the wheel.</strong> The gods you anger send hunters. The gods you leave alone eat the towns, carry the blood home, grow their ground, and go to war where their grounds meet. Rival priests come for the towns, and for you.</p></li>
+  <li><span class="k">5</span><p><strong>Take the largest share.</strong> The run ends when you fall, when the world is eaten and everything turns to you, or when you have cast out every rival and your own god has no more use for you. The card at the end says what share of the world was yours.</p></li>
+</ol>
+
+<h2>What is different</h2>
+<div class="diff">
+  <div><h3>The price of a choice is the shape of your other choices</h3><p>Nine gods on a ring. Neighbours are allies, the far side are enemies, and the cost of favor climbs with distance from your patron and with how scattered your devotion is. The three builds that take one god from every arc are the endgame, and they anger the entire rest of the wheel.</p></div>
+  <div><h3>The world is finite and everyone is eating it</h3><p>Every unit of blood in a run began in a settlement. Servants bleed the towns and carry what they take home to their god's seat; the seat's ground grows with what it holds. Difficulty is not a clock; it is what the gods have eaten.</p></div>
+  <div><h3>Your enemies are made of the blood you missed</h3><p>Blood remembers every god it has passed through, and a god will not eat what is already its own. What you leave on the ground is taken by someone else's servant, which grows on it. A carrier three gods deep is an elite, and nothing authored it but your inefficiency.</p></div>
+  <div><h3>Wrath is the cost of power, and the score is a share</h3><p>Nobody is trying to kill you for its own sake. The gods are trying to eat the world, and they turn on you exactly as much as your favors deserve. Break a seat and cast a god out, and its friends rise. Break them all and your own god, with no rivals left, has no use for a priest. You win by taking more of the world than the other priests did.</p></div>
+</div>
+
+<h2>The nine</h2>
+<ul class="gods">
+  <li class="god" style="--c:#7a9a3f"><span class="n">0 · passive, aura</span><b>Gwulhorlw</b><span>Rotting presence. A seeping, pulsing wound.</span></li>
+  <li class="god" style="--c:#b8447a"><span class="n">1 · passive, contagion</span><b>The Bottomless</b><span>Covetous whisper. A woman in black tentacles.</span></li>
+  <li class="god" style="--c:#c98a2b"><span class="n">2 · swarm</span><b>The Ninth Swarm</b><span>Devouring flight. A sphere of locusts.</span></li>
+  <li class="god" style="--c:#b23a34"><span class="n">3 · melee, sustain</span><b>Hueilei</b><span>Blood debt. A blood‑soaked arena.</span></li>
+  <li class="god" style="--c:#e0662a"><span class="n">4 · melee, scorch</span><b>The Cinder Jarl</b><span>Cinderswing. A colossal flaming sword.</span></li>
+  <li class="god" style="--c:#d9c05a"><span class="n">5 · ranged, heat</span><b>The Woken Star</b><span>Gravity well. A shrine to the sun.</span></li>
+  <li class="god" style="--c:#5ab5c9"><span class="n">6 · ranged, geometry</span><b>Ik'Thel'The</b><span>Unfold. A strange geometric object.</span></li>
+  <li class="god" style="--c:#8a6fc4"><span class="n">7 · ranged, placed</span><b>First Blasphemy</b><span>Anti‑sigil. An obelisk, written on.</span></li>
+  <li class="god" style="--c:#8a97a8"><span class="n">8 · passive, minions</span><b>The Pale Ossuary</b><span>Carrion rite. A bone tower.</span></li>
+</ul>
+<p class="dim" style="margin-top:12px">Three names are final: Gwulhorlw, Hueilei, Ik'Thel'The. The other six are working titles.</p>
+
+<h2>Where it stands</h2>
+<div class="stats">
+  <div class="stat"><b>1</b><span>file, playable on a phone</span></div>
+  <div class="stat"><b>9</b><span>weapons, 47 cards</span></div>
+  <div class="stat"><b>14</b><span>towns a world, ~20k blood</span></div>
+  <div class="stat"><b>~25</b><span>minutes to eat a world</span></div>
+  <div class="stat"><b>&lt;1 ms</b><span>a frame at 400 bodies</span></div>
+</div>
+<p>The economy, the wheel, the finite world, servants and seats, the chain, war, rival priests and breakable seats are all in and tuned against measured fast‑forward runs. Still open: renouncing a god, the conjunction event that fuses a completed triad's weapons, whether wars may break seats, a heretical tenth start with no patron, and six of the nine names.</p>
+
+<footer>The full <a href="https://claude.ai/code/artifact/3bfb304f-b540-4c49-a66d-db38f54e1dc3">design reference</a> covers every rule, formula and constant. The <a href="https://claude.ai/code/artifact/102ef318-41f7-45ed-aa19-d6337c6ddd51">chain design review</a> is the adversarial pass that shaped the current build.</footer>
+</div>

@@ -1,0 +1,19 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/mersi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');const {pathToFileURL}=require('node:url'),path=require('node:path'),assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{const p=await browser.newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto(pathToFileURL(path.resolve(__dirname,'../prototype.html')).href);const report=await p.evaluate(()=>{
+ const check=(v,m)=>{if(!v)throw Error(m);},reset=g=>{newGame(g);S.mode='altar';S.enemies=[];S.px=S.py=0;},enemy=(x=80,y=0)=>{const e=servant((S.patron+4)%9,x,y,'hunt',10000,12,80,0);e.x=x;e.y=y;S.enemies.push(e);return e;},card=(g,id)=>CARDS[g].find(c=>c.id===g+id).ap(S.gmod[g]);
+ reset(0);let a=enemy(),b=enemy(100);card(0,'contagion');a.c.dis=2;updateBuild(.05);check(b.c.dis>0,'Contagion hook');card(0,'mucus');check(slowOf(a)>=.2,'Disease slow');card(0,'trail');S.px=40;updateBuild(.05);check(S.fields.some(f=>f.condition==='dis'),'Plague trail');
+ reset(1);a=enemy();a.turned=1;card(1,'refuge');check(Math.abs(damageReduction()-.25)<1e-6,'Shelter reduction');card(1,'obsession');b=enemy(100);enthrall(b,2);check(b.turnT===5,'Enthrall duration');
+ reset(2);card(2,'antennae');const shot={x:0,y:0,vx:500,vy:0,life:1};a=enemy(0,100);prepareLocust(shot,.05);check(shot.vy>400,'Locust homing');shot.hits.add(a);shot.seek=0;b=enemy(100,0);prepareLocust(shot,.05);check(shot.vx>400,'Locust retargets unhit prey');
+ reset(3);card(3,'execution');a=enemy();a.hp=10;a.c.bleed=2;check(bloodStrike(a,1)>=10,'Bleeding execution');a.boss=true;check(bloodStrike(a,1)<10,'Execution must exempt priests');card(3,'martyr');S.hp=40;check(playerSpeed()>CFG.playerSpeed,'Martyr speed');
+ reset(4);card(4,'embers');card(4,'pyre');const field={col:GODS[4].col,life:4,max:4};prepareField(field);check(field.life===6&&S.gmod[4].f.emberTick===.35,'Fire timing');card(4,'cautery');S.hp=50;healPlayer(10);check(S.hp===58,'Healing tradeoff');
+ reset(5);card(5,'ion');a=enemy();a.res=.6;afflict(a,'rad',10);check(Math.abs(a.c.rad-7)<1e-6,'Ionization resistance');card(5,'pressure');check(damageReduction(a)===.25,'Radiation pressure');
+ reset(6);card(6,'axiom');a=enemy(100,26);castRay(0,0,0,200,10,false,1);check(a.hp<10000,'Wider rays');card(6,'inverse');a.unf=4;check(Math.abs(damageReduction(a)-.3)<1e-6,'Inverse defense');
+ reset(7);card(7,'absolution');card(7,'echo');S.hp=50;S.cd.fill(10);for(let i=0;i<3;i++)consumeWord({});check(S.hp===62&&S.cd.every(c=>c===9),'Borrowed-word heal and cooldown effect');card(7,'slander');check(wordMultiplier()===1.4,'Word potency');
+ reset(8);card(8,'shards');card(8,'grave');a=enemy();boneHit(a);check(a.c.bleed>0&&slowOf(a)>=.3,'Bone secondary conditions');card(8,'mourn');S.kills=5;buildDeath(a);check(S.minions.length===1,'Kill-triggered seeker');
+ newGame(0);S.mode='play';S.hp=S.maxHp=1e8;S.thresholds.fill(0);for(const g of [0,7,8]){S.thresholds[g]=16;for(const c of CARDS[g])if(!c.branch||c.id===g+'doctrineA'||c.id===g+'apex1')c.ap(S.gmod[g]);}recalcPassives();S.hp=1e8;S.maxHp=1e8;
+ for(let i=0;i<320;i++){const e=birth(4,'hunt',10,true),a=i*2.399,r=80+(i%13)*24,p=WorldNavigation.nearest(S.terrain,S.px+Math.cos(a)*r,S.py+Math.sin(a)*r,12);e.x=p.x;e.y=p.y;}const t=performance.now();for(let i=0;i<160;i++)update(.05);const ms=performance.now()-t;check(Number.isFinite(S.hp)&&S.fields.length<400&&S.shots.length<2000,'Unbounded effects');check(ms<15000,'Build simulation stalled');
+ return {godSpecificHookGroups:9,stressUpdates:160,stressMs:Math.round(ms),fields:S.fields.length,shots:S.shots.length};
+ });assert.deepEqual(errors,[]);console.log(report);}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
+
+
+
