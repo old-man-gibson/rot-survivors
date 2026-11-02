@@ -515,7 +515,7 @@ const BODY={
  // the titan, a harvestman of rot: no head, only a gutted, plated abdomen slung high on eight long kinked legs of bone;
  // it leaks without stopping from a scatter of sores on its underside, and the drip feeds the rot pool it walks in
  g_spider:{W:124,H:104,f(g,u,R,W,H){const gy=94,TA=TAU,G=420;
-   const body=v=>{const th=Math.max(0,Math.sin(TA*v*2))**3,sw=Math.sin(TA*v)*2.2,bob=Math.sin(TA*v*2)*1.3;return{cx:62+sw,cy:34+bob,th,ax:20+th*.8,ay:12+th*.9};};
+   const body=v=>{const th=Math.max(0,Math.sin(TA*v*2))**3,sw=Math.sin(TA*v)*1.6,bob=-Math.cos(TA*(v*4-.7))*.8;return{cx:62+sw,cy:34+bob,th,ax:20+th*.8,ay:12+th*.9};};
    const B=body(u),{cx,cy,ax,ay,th}=B;
    // the pores: across the whole underside, each with its own rate (drops per loop), phase, size and tint
    // kind 0 drip, 1 trickle (fast, small, no bead), 2 glob (slow, fat bead, a 2px strand)
@@ -527,14 +527,18 @@ const BODY={
      for(let k=0;k<2;k++){const t=(u*2+k*.5)%1;g.strokeStyle=t<.4?R[3]:R[2];g.lineWidth=1;g.beginPath();g.ellipse(pc+1,gy-1,6+t*20,1+t*2.2,0,0,TA);g.stroke();}
      pline(g,pc-12,gy-2,pc+6,gy-2,R[3]);}
    // the legs, four a side, staggered steps
-   const rest=[[-55,4],[-43,0],[-28,-1],[-14,2],[15,2],[29,-1],[44,0],[56,4]];
-   const legs=rest.map(([fx,back],i)=>{const side=fx<0?-1:1,far=i%2===1,ph=u*2+[0,.5,.25,.75,.12,.62,.37,.87][i];
-     const f=stepFoot(ph,61+fx,gy-(far?4:1)-back,7,5),root=[cx+side*(ax*.5+Math.abs(fx)*.08),cy+ay*.1];
-     const r0=[62+side*(10+Math.abs(fx)*.08),35],kd=[62+side*(15+Math.abs(fx)*.45),18-Math.abs(fx)*.12],fr=[61+fx,gy-(far?4:1)-back],l1=Math.hypot(kd[0]-r0[0],kd[1]-r0[1]),l2=Math.hypot(kd[0]-fr[0],kd[1]-fr[1])+.3;
-     const a=ik(root,f,l1,l2,1),b=ik(root,f,l1,l2,-1),k=a[1]<b[1]?a:b;return{root,k,f,far};});
-   const drawLeg=({root,k,f,far})=>{if(far){pline(g,root[0],root[1],k[0],k[1],R[2]);pline(g,k[0],k[1],f[0],f[1],R[2]);px(g,k[0],k[1],R[3]);}
-     else{taper(g,root,k,2.4,1.8,R[3]);taper(g,k,f,1.8,1.3,R[3]);pline(g,root[0],root[1]-1,k[0],k[1]-1,R[4]);pline(g,k[0],k[1],f[0]-(f[0]>k[0]?.5:-.5),f[1],R[4]);
-       ell(g,k[0],k[1],1.6,1.6,R[4]);px(g,k[0]-.5,k[1]-.5,R[3]);}
+   // the legs: two alternating tetrapods (L1 R2 L3 R4 / R1 L2 R3 L4) step in place twice a loop each, a quarter loop apart;
+   // a planted foot never moves, a swinging one lifts and sets down with eased (zero-velocity) ends; each knee rides a fixed rest pose, eased by the root and foot (a 2-bone solve folds on the inner legs and snaps)
+   const rest=[[-55,4],[-43,0],[-28,-1],[-14,2],[15,2],[29,-1],[44,0],[56,4]],grp=[0,1,0,1,1,0,1,0],SW=.17;
+   const legs=rest.map(([fx,back],i)=>{const side=fx<0?-1:1,far=i%2===1,fr=[61+fx,gy-(far?4:1)-back];
+     const ph=(((u*2+grp[i]*.5+(i<4?i:7-i)*.012)%1)+1)%1,s=ph<SW?ph/SW:0,lift=(1-Math.cos(TA*s))/2,
+       f=[Math.round(fr[0]+Math.sin(Math.PI*s)*side*1.5),Math.round(fr[1]-lift*4)];
+     const root=[Math.round(cx+side*(ax*.5+Math.abs(fx)*.08)),Math.round(cy+ay*.1)];
+     const r0=[Math.round(62+side*(20*.5+Math.abs(fx)*.08)),Math.round(34+12*.1)],kd=[62+side*(15+Math.abs(fx)*.45),18-Math.abs(fx)*.12];
+     const kk=[kd[0]+(root[0]-r0[0])*.6+(f[0]-fr[0])*.3,kd[1]+(root[1]-r0[1])*.7+(f[1]-fr[1])*.35],k=[Math.round(kk[0]),Math.round(kk[1])];return{root,k,f,far,side};});
+   const drawLeg=({root,k,f,far,side})=>{if(far){pline(g,root[0],root[1],k[0],k[1],R[2]);pline(g,k[0],k[1],f[0],f[1],R[2]);px(g,k[0],k[1],R[3]);}
+     else{const o=-side;pline(g,root[0]+o,root[1],k[0]+o,k[1],R[3]);pline(g,k[0]+o,k[1],f[0]+o,f[1],R[3]);pline(g,root[0],root[1]-1,k[0],k[1]-1,R[4]);pline(g,root[0],root[1],k[0],k[1],R[3]);pline(g,k[0],k[1],f[0],f[1],R[4]);
+       g.fillStyle=R[4];g.fillRect(k[0]-1,k[1]-1,3,3);px(g,k[0],k[1],R[3]);}
      pline(g,f[0]-1,f[1],f[0]+1,f[1],far?R[2]:R[4]);};
    legs.filter(l=>l.far).forEach(drawLeg);
    // the leaking: each pore's drops bead, stretch to a thread, let go, fall and splash; integer rates keep the loop seamless
