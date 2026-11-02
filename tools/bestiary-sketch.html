@@ -202,37 +202,33 @@ function goo(g,R,x,y,t,len,fall,w=1){x=Math.round(x);y=Math.round(y);t=((t%1)+1)
 function spurt(g,R,x,y,a,t,n=6,v=14,seed=1){if(t<=0||t>=1)return;
  for(let i=0;i<n;i++){const h=hash(i,seed,4),sp=v*(.55+.7*h),aa=a+(hash(i,seed,5)-.5)*.8,d=sp*t,s=t<.45&&i%2?2:1;
   g.fillStyle=i%3?R[3]:R[4];g.fillRect(Math.round(x+Math.cos(aa)*d),Math.round(y+Math.sin(aa)*d+t*t*v*.9),s,s);}}
-// a limb as a run of metaballs, so it reads as one poured body with the torso; w is the finished thickness
-function capsule(a,b,w0,w1,out){const d=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.max(1,Math.ceil(d/1.5));
- for(let i=0;i<=n;i++){const t=i/n,w=w0+(w1-w0)*t;out.push({x:a[0]+(b[0]-a[0])*t,y:a[1]+(b[1]-a[1])*t,r:Math.sqrt(w*.5*1.5/Math.PI)*.95});}return out;}
-// the joints of a figure facing right (fig's conventions), for bodies poured rather than stroked
-function rig(o){const{hx,hy,lean=0,Lt,hr,Ll,Ls,La,Lf,legs,arms}=o;
- const nx=hx+Math.sin(lean)*Lt,ny=hy-Math.cos(lean)*Lt,sx=hx+Math.sin(lean)*Lt*.8,sy=hy-Math.cos(lean)*Lt*.8;
- const limb=(x,y,a1,l1,a2,l2)=>{const kx=x+Math.sin(a1)*l1,ky=y+Math.cos(a1)*l1;return[[x,y],[kx,ky],[kx+Math.sin(a2)*l2,ky+Math.cos(a2)*l2]];};
- return{hip:[hx,hy],neck:[nx,ny],sh:[sx,sy],head:[nx+Math.sin(lean)*hr*.9,ny-Math.cos(lean)*hr*.9-hr*.25],
-  legB:limb(hx-1,hy,legs[0][0],Ll,legs[0][1],Ls),legF:limb(hx+1,hy,legs[1][0],Ll,legs[1][1],Ls),
-  armB:limb(sx-1,sy,arms[0][0],La,arms[0][1],Lf),armF:limb(sx+1,sy,arms[1][0],La,arms[1][1],Lf)};}
-// Hueilei's bodies: back limbs in shadow, then torso, head and front limbs poured as one glossy volume,
-// a heart that beats through the chest and veins that flush with it. Returns the rig for props.
-function bloodBody(g,R,o,W,H,u,{beats=2,heart=1,veinSeed=1,clot=0}={}){const j=rig(o),b=beat(u*beats),T=o.Wt||6,Wl=o.Wl||3,Wa=o.Wa||2.6;
- const back=[];for(const L of[j.legB,j.armB]){capsule(L[0],L[1],L===j.legB?Wl:Wa,(L===j.legB?Wl:Wa)*.9,back);capsule(L[1],L[2],(L===j.legB?Wl:Wa)*.9,(L===j.legB?Wl:Wa)*.75,back);}
- blobs(g,R,back,W,H,{bias:.4});
- const B=[];capsule(j.hip,j.neck,T*(1.02+b*.06),T*(1.12+b*.1),B);B.push({x:j.head[0],y:j.head[1],r:o.hr*.62});
- for(const L of[j.legF,j.armF]){const w=L===j.legF?Wl:Wa;capsule(L[0],L[1],w,w*.9,B);capsule(L[1],L[2],w*.9,w*.75,B);}
- blobs(g,R,B,W,H,{bias:.1});
- // a wet sheen along the lit side of the torso
- {const[a,c]=[j.hip,j.neck],n=Math.hypot(c[0]-a[0],c[1]-a[1])||1,ox=-(c[1]-a[1])/n*T*.3-.5,oy=(c[0]-a[0])/n*T*.3*-1-.3;pline(g,a[0]+(c[0]-a[0])*.25+ox,a[1]+(c[1]-a[1])*.25-Math.abs(oy),a[0]+(c[0]-a[0])*.8+ox,a[1]+(c[1]-a[1])*.8-Math.abs(oy),R[4]);}
- // the heart, low in the chest, and the veins it feeds
- const hx=j.hip[0]+(j.sh[0]-j.hip[0])*.62+T*.18,hy=j.hip[1]+(j.sh[1]-j.hip[1])*.62;
- if(heart){const r=rng(veinSeed);for(let v=0;v<4;v++){let a=r()*TAU,x=hx,y=hy;const n=2+Math.floor(r()*3);
-   for(let s=0;s<n;s++){const L=1.5+r()*2.2,x1=x+Math.cos(a)*L,y1=y+Math.sin(a)*L;pline(g,x,y,x1,y1,b>.6?R[4]:R[1]);x=x1;y=y1;a+=(r()-.5)*1.4;}}
-  ell(g,hx,hy,(.9+b*.9)*heart,(.9+b*.9)*heart,b>.3?R[4]:R[3]);px(g,hx,hy,R[3]);}
- // clotting: dark crust in a few places it has started to set
- if(clot)for(let i=0;i<clot;i++){const q=B[Math.floor(hash(i,veinSeed,9)*B.length)];g.fillStyle=R[1];g.fillRect(Math.round(q.x-.5),Math.round(q.y-q.r*.6),2,1);px(g,q.x+1,q.y-q.r*.6+1,R[0]);}
- return{...j,beat:b,heart:[hx,hy]};}
 // a glyph part-written: t of its strokes, the last one partial (the pen is at glyphTip)
 function glyphTip(seed,t){const s=glyph(seed),n=s.length,k=Math.min(n-1,Math.floor(t*n)),f=t*n-k,[a,b,c,d]=s[k];return[a+(c-a)*f,b+(d-b)*f];}
 function inkGlyph(g,seed,x,y,s,col,t,w=1){const sg=glyph(seed),n=sg.length,k=t*n;for(let i=0;i<n&&i<k;i++){const[a,b,c,d]=sg[i],f=Math.min(1,k-i);pline(g,x+a*s,y+b*s,x+(a+(c-a)*f)*s,y+(b+(d-b)*f)*s,col,w);}}
+// ---------- anatomy for the fleshy gods: hard-edged parts (bone, plate, cord, hide), not poured blobs ----------
+// the joint of a two-bone limb from a to b; s=+1 bends it toward the facing side, s=-1 away
+function ik(a,b,l1,l2,s=1){const dx=b[0]-a[0],dy=b[1]-a[1],d=Math.min(Math.hypot(dx,dy),l1+l2-.01)||.01,an=Math.atan2(dy,dx),c=Math.acos(Math.max(-1,Math.min(1,(l1*l1+d*d-l2*l2)/(2*l1*d))));
+ return[a[0]+Math.cos(an-c*s)*l1,a[1]+Math.sin(an-c*s)*l1];}
+// a flat-filled tapered segment with round ends
+function taper(g,a,b,w0,w1,c){const dx=b[0]-a[0],dy=b[1]-a[1],d=Math.hypot(dx,dy)||1,nx=-dy/d,ny=dx/d;
+ poly(g,[[a[0]+nx*w0/2,a[1]+ny*w0/2],[b[0]+nx*w1/2,b[1]+ny*w1/2],[b[0]-nx*w1/2,b[1]-ny*w1/2],[a[0]-nx*w0/2,a[1]-ny*w0/2]],c);
+ if(w0>1.4)ell(g,a[0],a[1],w0/2,w0/2,c);if(w1>1.4)ell(g,b[0],b[1],w1/2,w1/2,c);}
+// two bones a-k-b, tapering w0..w2, with a lit edge on the upper-left side of each
+function bones(g,a,k,b,w0,w1,w2,c,lit){taper(g,a,k,w0,w1,c);taper(g,k,b,w1,w2,c);if(!lit)return;
+ const e=(p,q,w)=>{const dx=q[0]-p[0],dy=q[1]-p[1],d=Math.hypot(dx,dy)||1;let nx=-dy/d,ny=dx/d;if(nx+ny>0){nx=-nx;ny=-ny;}return[nx*Math.max(0,w/2-.8),ny*Math.max(0,w/2-.8)];};
+ const o1=e(a,k,(w0+w1)/2),o2=e(k,b,(w1+w2)/2);pline(g,a[0]+o1[0],a[1]+o1[1],k[0]+o1[0],k[1]+o1[1],lit);pline(g,k[0]+o2[0],k[1]+o2[1],b[0]+o2[0],b[1]+o2[1],lit);}
+// a hard-shaded knob: dark rim, base, lit cap, one specular pixel
+function knob(g,R,x,y,r,t=2){ell(g,x,y,r+.7,r+.7,R[t-1]);ell(g,x+.2,y+.2,r,r,R[t]);ell(g,x-r*.28,y-r*.32,r*.58,r*.52,R[Math.min(4,t+1)]);px(g,x-r*.45,y-r*.55,R[4]);}
+// a mushroom: a pale stalk, a cap with a lit crown and dark gills
+function shroom(g,R,x,y,h,w,lean=0){const tx=x+lean,ty=y-h;pline(g,x,y,tx,ty,R[4]);ell(g,tx,ty,w,Math.max(1,w*.6),R[3]);pline(g,tx-w+.6,ty+Math.max(1,w*.6)-.4,tx+w-.6,ty+Math.max(1,w*.6)-.4,R[1]);px(g,tx-w*.4,ty-w*.35,R[4]);}
+// a chain: links alternating light and dark along a sagging curve from a to b
+function links(g,R,a,b,sag=0,hi=4){const n=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/1.5)+1;for(let i=0;i<=n;i++){const t=i/n;px(g,a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t+Math.sin(Math.PI*t)*sag,i%2?R[hi]:R[1]);}}
+// a quadratic curve as points
+function qpts(a,c,b,n=8){const o=[];for(let i=0;i<=n;i++){const t=i/n,m=1-t;o.push([m*m*a[0]+2*m*t*c[0]+t*t*b[0],m*m*a[1]+2*m*t*c[1]+t*t*b[1]]);}return o;}
+// a foot through one step: lifted and swinging forward over the first half, planted and sliding back over the second
+function stepFoot(ph,x,gy,stride,lift){ph=((ph%1)+1)%1;return ph<.5?[x-stride/2+stride*smooth(0,.5,ph),gy-Math.sin(ph*TAU)*lift]:[x+stride/2-stride*(ph-.5)*2,gy];}
+// keyframed pose: keys [[u,value],...] with value a number or [x,y]; eased between keys
+function key(u,keys){if(u<=keys[0][0])return keys[0][1];for(let i=1;i<keys.length;i++){const[u1,v1]=keys[i],[u0,v0]=keys[i-1];if(u<=u1){const t=smooth(u0,u1,u);return Array.isArray(v0)?[v0[0]+(v1[0]-v0[0])*t,v0[1]+(v1[1]-v0[1])*t]:v0+(v1-v0)*t;}}return keys[keys.length-1][1];}
 
 // ---------- the code-drawn bodies: f(g,u,R,W,H), u loops 0..1 ----------
 const BODY={
@@ -407,199 +403,324 @@ const BODY={
    // motes rising along the faces
    for(let i=0;i<7;i++){const t=(u*2+i/7)%1,x=c+(i%2?1:-1)*(13+i%3*2)+Math.sin(TAU*(t+i*.4))*2,y=base-2-t*70;px(g,x,y,t<.6?R[4]:R[3]);}
    for(let i=0;i<3;i++){const[x,y,s]=trap(i);if(s>=0){ell(g,x,y,4,1.6,R[3]);drawGlyph(g,301,x-2,y-9,2,R[4]);}}}},
- // Gwulhorlw
- // a sagging, one-eyed thing that heaves itself forward and slumps; a strip of skin swings off its back and its eye never stops running
- g_weeper:{W:32,H:40,f(g,u,R,W,H){const gy=37,t=(u*2)%1,L=lurch(t),sq=1-L,x0=12+L*1.6;
-   ell(g,7,gy,7,1.3,R[1]);for(let i=0;i<5;i++){const k=(u*2+i/5)%1;if(k<.8)px(g,12-k*13,gy,k<.4?R[3]:R[2]);}
-   const hx=x0+4+L*3.5,hy=gy-20-L*3+sq*2.5;
-   // the loose flap, a beat behind the body
-   const fa=.5+Math.sin(TAU*t-1.4)*.45,fr=[x0-3,gy-14+sq*2],ft=[fr[0]-Math.sin(fa)*6,fr[1]+Math.cos(fa)*6];
-   stroke(g,[fr,ft],R[1],2.6);
-   blobs(g,R,[{x:x0,y:gy-5+sq,r:6+sq*1.3},{x:x0+5+sq,y:gy-3,r:3+sq},{x:x0+1+L*1.5,y:gy-11+sq*2,r:4.6},{x:hx-1,y:hy+1,r:5},{x:hx-5,y:hy+6+sq*2.5,r:2.4},{x:x0-6,y:gy-2,r:2.4}],W,H,{mottle:.12,sores:.05,seed:3,bias:.06});
-   stroke(g,[[fr[0]+1,fr[1]],[(fr[0]+ft[0])/2,(fr[1]+ft[1])/2]],R[3],1);px(g,ft[0],ft[1],R[2]);
-   // one eye, too heavy for its socket
-   const ex=hx+1,ey=hy+1+sq*1.2;ell(g,ex,ey,3.7,4,R[0]);ell(g,ex,ey+.3,2.8,3.1,R[4]);ell(g,ex+1,ey+1,1.4,1.5,R[0]);px(g,ex-1,ey-1,R[4]);
-   pline(g,ex-3,ey-4.5+sq,ex+3,ey-3.5,R[1]);
-   goo(g,R,ex-1,ey+3,u*2+.35,4+sq*2,gy-ey-8);
-   // a lump of it lets go and lands
-   const dt=(t-.55)/.35;if(dt>0&&dt<1){const y=Math.min(gy-1,gy-12+dt*dt*14);ell(g,x0-5-dt*2,y,1.4,dt>.8?.8:1.4,R[2]);}
-   flies(g,R,hx-1,hy-7,3,7,3,u,8);}},
- // a teratoma: teeth, hair and bone chips in a lump of flesh; it drags itself on overjointed fingers that snap off and crumble
- g_teratoma:{W:74,H:46,f(g,u,R,W,H){const gy=43,stride=10,uB=.62,cxAt=v=>27+lurch((v*2)%1,.35)*2.6,cx=cxAt(u),cy=31-lurch((u*2)%1,.35)*1.6;
-   const L1=[6,6,5.5,5,4.5,4],L2=[5,5,4.5,4,4,3.5],L3=[5.5,5,5,4.5,4.5,4];
-   const tip=(t,plant)=>t<.5?(e=>[plant-stride+stride*e,gy-Math.sin(Math.PI*e)*8])(smooth(0,.5,t)):[plant-stride*(t-.5)/.5,gy];
-   const finger=(root,lens,target)=>fabrik(root,lens,target,chainInit(root,lens,-1.1,.45));
-   const f1At=v=>finger([cxAt(v)+7,cy-6],L1,tip((v*2+.5)%1,58));
-   const drawFinger=(p,c,kn,w0)=>{for(let i=0;i<p.length-1;i++)stroke(g,[p[i],p[i+1]],c,w0-i*.2);
-    for(let i=1;i<p.length-1;i++)ell(g,p[i][0],p[i][1],w0*.6,w0*.6,kn);const e=p[p.length-1],q=p[p.length-2],a=Math.atan2(e[1]-q[1],e[0]-q[0]);
-    g.fillStyle=R[4];g.fillRect(Math.round(e[0]),Math.round(e[1]),2,1);px(g,e[0]-Math.cos(a),e[1]-Math.sin(a),R[4]);};
-   const hair=(x,y,a,n,len)=>{for(let s=0;s<n;s++){const an=a+(s-n/2)*.25;let x0=x,y0=y;
-    for(let k=1;k<=len;k++){const w=Math.sin(TAU*u+s+k*.5)*k*.14,x1=x+Math.cos(an)*k-Math.sin(an)*w,y1=y+Math.sin(an)*k+Math.cos(an)*w;pline(g,x0,y0,x1,y1,s%2?R[0]:R[1]);x0=x1;y0=y1;}}};
-   const teeth=(x,y,n)=>{ell(g,x,y+.5,n*1.5+1.5,2.4,R[0]);for(let i=0;i<n;i++){const h=2+Math.floor(hash(i,n,5)*2);g.fillStyle=R[4];g.fillRect(Math.round(x-n*1.5+i*3+.5),Math.round(y-h+1),2,h);}};
-   // two fingers behind the body never stop pulling
-   drawFinger(finger([cx+6,cy+3],L2,tip((u*2)%1,53)),R[2],R[3],2.4);
-   drawFinger(finger([cx+8,cy-1],L3,tip((u*2+.25)%1,62)),R[2],R[3],2.4);
-   blobs(g,R,lumpy([{x:cx-2,y:cy-1,r:9},{x:cx-9,y:cy+3,r:7},{x:cx+6,y:cy-5,r:5},{x:cx+4,y:cy+6,r:6},{x:cx-6,y:cy-8,r:6},{x:cx-14,y:cy+1,r:4},{x:cx+10,y:cy+2,r:3.5},{x:cx+1,y:cy-11,r:3.5}],3,21),W,H,{mottle:.14,sores:.03,seed:7,bias:.16});
-   hair(cx-6,cy-13,-2.0,6,11);hair(cx-15,cy-3,-2.9,4,9);hair(cx+2,cy-14,-1.4,4,8);
-   teeth(cx-1,cy-6,3);teeth(cx+5,cy+3,4);teeth(cx-9,cy+5,3);goo(g,R,cx-5,cy+9,u*2,3,gy-cy-13,2);goo(g,R,cx+5,cy+9,u*2+.45,2,gy-cy-12);
-   const bone=pts=>{poly(g,pts.map(([x,y])=>[x+(x>cx?.6:-.6),y+.6]),R[0]);poly(g,pts,R[4]);};
-   bone([[cx+9,cy-3],[cx+16,cy-7],[cx+10,cy]]);bone([[cx-7,cy-11],[cx-9,cy-19],[cx-4,cy-12]]);bone([[cx-14,cy+3],[cx-21,cy+4],[cx-14,cy+6]]);bone([[cx+2,cy+9],[cx+4,cy+14],[cx+5,cy+9]]);
-   ell(g,cx+3,cy-3,2.2,1.8,R[4]);px(g,cx+3,cy-3,R[0]);px(g,cx+4,cy-3,R[0]);pline(g,cx,cy-5,cx+5,cy-5,R[1]);
-   // an old stub with bone showing
-   drawFinger(finger([cx-2,cy-9],[3.5,3.5],[cx-6,cy-16]),R[3],R[4],2.4);
-   // the front finger: reaches, plants, pulls, snaps at uB, then regrows from a stub
-   const age=(u-uB+1)%1,broken=u>=uB||u<.25;
-   if(!broken)drawFinger(f1At(u),R[3],R[4],2.8);
-   else{const grow=u<.25?smooth(0,.2,u):0,vis=2+4*grow,lens=L1.map((l,i)=>i<Math.floor(vis)?l:i<vis?l*(vis-Math.floor(vis)):0).filter(l=>l>.3);
-    const root=[cx+7,cy-6],a=-.6+Math.sin(TAU*u*5)*.5,sum=lens.reduce((s,l)=>s+l,0),brk=f1At(uB)[2];
-    let tg=[root[0]+Math.cos(a)*sum*.9,root[1]+Math.sin(a)*sum*.9];
-    if(u>=uB){const k=smooth(0,.08,age);tg=[brk[0]+(tg[0]-brk[0])*k,brk[1]+(tg[1]-brk[1])*k];}
-    if(u<.25){const k=smooth(.15,.25,u),s0=tip(0,58);tg=[tg[0]+(s0[0]-tg[0])*k,tg[1]+(s0[1]-tg[1])*k];}
-    drawFinger(finger(root,lens,tg),R[3],R[4],2.8);}
-   // the piece that snapped off, lying in the dirt as it crumbles
-   if(age<.45){const d=age/.45,fall=smooth(0,.05,age),pts=f1At(uB).slice(2).map(([x,y],i)=>[x-age*18,y+(gy-1-i*.3-y)*fall]);
-    for(let i=0;i<pts.length-1;i++)dline(g,pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],i<2?R[3]:R[2],d*1.1,i+1,i<2?2:1);
-    for(let k=0;k<8;k++){const q=pts[k%pts.length],r=hash(k,9,1);if(d>.05&&d<.95)px(g,q[0]+(r-.5)*6,q[1]-d*10*r-1,k%2?R[1]:R[2]);}}
-   flies(g,R,cx-4,cy-16,4,12,5,u,21);}},
- // a deformed upper body: arms to walk on, arms to grasp with, a mouth full of teeth, acid running off it
- g_gnasher:{W:48,H:42,f(g,u,R,W,H){const gy=40,js=(u*3)%1,snap=js>.7?1-smooth(.76,.98,js):0,bob=Math.sin(TAU*u*6)*.6,cx=19+snap*2.6,cy=27+bob+snap,open=js<.7?smooth(0,.7,js):1-smooth(.7,.75,js);
-   ell(g,32,gy,5,1.2,R[3]);for(let i=0;i<3;i++){const t=(u*3+i/3)%1;if(t<.25)px(g,27+i*3,gy-1,R[4]);px(g,26+i*4+Math.sin(TAU*(u+i*.3))*1.5,gy-3-t*12,t<.5?R[2]:R[1]);}
-   const arm=(sx,sy,rest,ph,c,w)=>{const t=(u*2+ph)%1,st=t<.6,fx=st?rest+3-6*t/.6:rest-3+6*(t-.6)/.4,fy=gy-(st?0:Math.sin(Math.PI*(t-.6)/.4)*3),k=knee(sx,sy,fx,fy,8,9);
-    stroke(g,[[sx,sy],k],c,w);stroke(g,[k,[fx,fy-1]],c,w*.85);g.fillStyle=c;g.fillRect(Math.round(fx)-2,Math.round(fy)-2,4,2);px(g,fx+2,fy,c);px(g,fx-2,fy,c);px(g,fx,fy,c);ell(g,k[0],k[1],w*.6,w*.6,R[3]);};
-   arm(cx+3,cy+1,34,.5,R[1],3);arm(cx-5,cy+2,12,0,R[1],2.8);
-   for(let i=0;i<2;i++){const ph=TAU*(u*2+i*.4),a=-2.1+i*.55+Math.sin(ph)*.35,b=a+.8+Math.sin(ph+1.2)*.5,s=[cx-3+i*4,cy-7],e=[s[0]+Math.cos(a)*9,s[1]+Math.sin(a)*9],h=[e[0]+Math.cos(b)*8,e[1]+Math.sin(b)*8];
-    stroke(g,[s,e,h],i?R[2]:R[1],2.8);ell(g,e[0],e[1],1.6,1.6,R[3]);for(const k of[-.7,0,.7])pline(g,h[0],h[1],h[0]+Math.cos(b+k)*3.5,h[1]+Math.sin(b+k)*3.5,R[3]);}
-   blobs(g,R,lumpy([{x:cx,y:cy,r:8},{x:cx-6,y:cy-4,r:5},{x:cx+5,y:cy-5,r:5},{x:cx-1,y:cy+5,r:6},{x:cx-9,y:cy+6,r:4}],2,33),W,H,{mottle:.16,sores:.05,seed:9,bias:.1});
-   arm(cx+6,cy+3,38,0,R[2],3.4);arm(cx-2,cy+4,18,.5,R[2],3.2);
-   const mx=cx+6,my=cy-1,mh=1+open*4;
-   g.save();g.translate(mx,my);g.rotate(-.12);ell(g,0,0,8,mh+1,R[1]);ell(g,0,0,7,mh,R[0]);
-   for(let i=0;i<7;i++){const x=-6+i*2,l=1+(i*7%3);g.fillStyle=R[4];g.fillRect(x,-mh,1,l+(i%2));g.fillRect(x+1,mh-l,1,l);}g.restore();
-   for(let i=0;i<3;i++){const x=mx-3+i*3,len=2+((u*3+i*.37)%1)*4;pline(g,x,my+mh,x,my+mh+len,R[3]);px(g,x,my+mh+len,R[4]);drip(g,R,x,my+mh+3,u,3,i,gy-my-mh-3);}
-   spurt(g,R,mx+7,my,-.25,(js-.72)/.28,6,12,3);flies(g,R,cx-2,cy-12,3,9,4,u,13);}},
- // the titan: a pustulous body slung between long legs; its mouth is full of arms that throw acid
- g_spider:{W:116,H:98,f(g,u,R,W,H){const gy=95,bob=(1-lurch((u*2)%1,.3))*2.6-1.3,cx=50,cy=44+bob,mx=cx+11,my=cy+8;
-   const feet=[[12,1],[32,0],[68,1],[92,0],[4,0],[24,1],[82,0],[106,1]];   // [rest x, gait group]; the first four are the far side
-   const leg=i=>{const[rx,grp]=feet[i],far=i<4,t=(u*2+grp*.5+i*.07)%1,st=t<.7,fx=st?rx+5-10*t/.7:rx-5+10*(t-.7)/.3,fy=gy-(st?0:Math.sin(Math.PI*(t-.7)/.3)*6);
-    const ax=cx-3+(rx-cx)*.1,ay=cy+6,kx=ax+(fx-ax)*.45,ky=3+Math.abs(rx-cx)*.05+(far?3:0)+bob;
-    stroke(g,[[ax,ay],[kx,ky]],far?R[1]:R[2],far?1.8:2.6);stroke(g,[[kx,ky],[fx,fy]],far?R[1]:R[2],far?1.4:2);
-    ell(g,kx,ky,far?1.6:2.2,far?1.6:2.2,far?R[2]:R[3]);if(!far){px(g,kx-1,ky-1,R[4]);ell(g,(kx*2+fx)/3,(ky*2+fy)/3,1.4,1.4,R[3]);}};
-   for(let i=0;i<4;i++)leg(i);
-   blobs(g,R,lumpy([{x:cx,y:cy,r:15},{x:cx-10,y:cy+3,r:9},{x:cx+9,y:cy+4,r:9},{x:cx-3,y:cy-9,r:8},{x:cx+3,y:cy+10,r:8}],3,41),W,H,{mottle:.2,sores:.04,seed:12,bias:.08});
-   const r=rng(43);for(let i=0;i<16;i++){const a=-Math.PI*(.2+.8*r()),d=5+r()*15,x=cx-4+Math.cos(a)*d*1.1,y=cy+Math.sin(a)*d*.95,s=(Math.floor(u*8)+i)%5===0?3:1.6+r();
-    ell(g,x,y,s+1,s+1,R[0]);ell(g,x,y,s,s,R[4]);px(g,x,y,R[3]);}
-   for(let i=4;i<8;i++)leg(i);
-   // the mouth, ringed with teeth
-   ell(g,mx,my,14.5,12.5,R[1]);ell(g,mx,my,13,11,R[0]);
-   for(let k=0;k<18;k++){const th=TAU*k/18;pline(g,mx+Math.cos(th)*13,my+Math.sin(th)*11,mx+Math.cos(th)*9.5,my+Math.sin(th)*8,R[4]);}
-   // arms in the mouth; two of them wind up and throw acid
-   const throws=[{rel:.25,T:[108,88]},{rel:.75,T:[98,92]}];
-   const armChain=(i,base)=>{const th=throws[i],wob=Math.sin(TAU*(u*2+i*.3));let a0=[-.7,.3,-.2,.7,0][i]+wob*.35,curl=.35*Math.sin(TAU*(u*3+i*.2));
-    if(th){const w=(u-th.rel+1)%1,wind=w>.85?smooth(.85,.97,w):0,ext=w<.12?1-smooth(.05,.12,w):0,aim=Math.atan2(th.T[1]-base[1],th.T[0]-base[0])-.5;
-     a0=a0+(Math.PI*.9-a0)*wind;a0=a0+(aim-a0)*ext;curl=curl*(1-wind-ext)+wind*.9;}
-    const p=[base];let a=a0,[x,y]=base;for(const l of[7,6,5]){x+=Math.cos(a)*l;y+=Math.sin(a)*l;p.push([x,y]);a+=curl;}return p;};
-   for(let i=0;i<5;i++){const base=[mx-4+i%2*3,my-5+i*2.2],p=armChain(i,base);
-    for(let s=0;s<3;s++)stroke(g,[p[s],p[s+1]],R[3],2.6-s*.4);for(let s=0;s<2;s++)pline(g,p[s][0],p[s][1]-1,p[s+1][0],p[s+1][1]-1,R[4]);
-    const[hx,hy]=p[3],ha=Math.atan2(hy-p[2][1],hx-p[2][0]);for(const k of[-.7,0,.7])pline(g,hx,hy,hx+Math.cos(ha+k)*3,hy+Math.sin(ha+k)*3,R[4]);
-    const th=throws[i];if(th){const w=(u-th.rel+1)%1;if(w>.85){ell(g,hx,hy,3,3,R[4]);px(g,hx,hy,R[3]);}}}
-   for(const th of throws){const w=(u-th.rel+1)%1;
-    if(w<.18){const s=w/.18,x0=mx+10,y0=my-2,at=q=>[x0+(th.T[0]-x0)*q,y0+(th.T[1]-y0)*q-Math.sin(Math.PI*q)*28];
-     for(let k=3;k>0;k--){const[x,y]=at(Math.max(0,s-k*.06));ell(g,x,y,1.2,1.2,R[3]);}const[x,y]=at(s);ell(g,x,y,3,3,R[4]);px(g,x,y,R[3]);}
-    else if(w<.36){const k=(w-.18)/.18;ell(g,th.T[0],th.T[1],3+k*6,1+k*1.2,R[3]);
-     for(let i=0;i<7;i++){const a=Math.PI*(.1+.8*i/6);g.fillStyle=R[4];g.fillRect(Math.round(th.T[0]+Math.cos(a)*k*9),Math.round(th.T[1]-Math.sin(a)*k*12+k*k*12),1,1);}
-     if(Math.floor(w*60)%2)px(g,th.T[0]-2,th.T[1]-1,R[4]);}}
-   for(let i=0;i<2;i++)drip(g,R,mx-4+i*6,my+12,u,2,i,gy-my-12);
-   for(let i=0;i<3;i++)goo(g,R,cx-14+i*9,cy+14-i,u*2+i*.33,4+i,gy-cy-20,2);flies(g,R,cx,cy-20,7,26,9,u,41);}},
- // the leader: a bloated preacher, belly sagging a beat behind its steps, head hung forward on a neck too long for it,
- // swinging a censer that breathes out the rot its pack heals in; flies keep to the smoke
- g_mother:{W:58,H:66,f(g,u,R,W,H){const gy=63,t=(u*2)%1,L=lurch(t,.32),sq=1-L,bl=Math.sin(TAU*t-1.6);
-   const cx=20+L,hand=[cx+17+L*2,gy-19+sq*2],th=.7*Math.sin(TAU*u*2-1.1),ch=8,cz=[hand[0]+Math.sin(th)*ch,hand[1]+Math.cos(th)*ch];
-   // stumps for legs, stepping in turn
-   for(const[ox,ph]of[[-3,0],[4,.5]]){const s=(t+ph)%1,lift=s<.3?Math.sin(s/.3*Math.PI)*3:0,fx=cx+ox+(s<.3?-2+s/.3*4:2-(s-.3)/.7*4);
-    const hip=[cx+ox*.6,gy-11+sq],k=knee(hip[0],hip[1],fx,gy-lift,6,6);stroke(g,[hip,k,[fx,gy-lift]],ph?R[2]:R[1],3.4);ell(g,fx+1,gy-lift,2.8,1.3,ph?R[2]:R[1]);}
-   blobs(g,R,[{x:cx+3+bl*.7,y:gy-15+sq*1.5,r:6.6+sq*.6},{x:cx-3,y:gy-25+sq,r:5.4},{x:cx+3,y:gy-24+sq,r:4.4},{x:cx-6,y:gy-15+sq,r:3.6},
-    {x:cx+8+bl*.6,y:gy-10+sq*2,r:2.4}],W,H,{mottle:.18,sores:.07,seed:4,bias:.1});
-   // folds where the belly hangs
-   for(let k=0;k<3;k++){const y=gy-16+k*3.2+sq*1.5+bl*.3;pline(g,cx-1+k,y,cx+7+k*.5+bl*.7,y+1.5,R[1]);}
-   // the neck and the head, hung out in front of it
-   blobs(g,R,[...capsule([cx+5,gy-28+sq],[cx+12+L*2,gy-27+sq*2],3,2.4,[]),{x:cx+15+L*2.5,y:gy-26+sq*2.5,r:4.4},{x:cx+14+L*2.5,y:gy-21+sq*3,r:2}],W,H,{mottle:.1,sores:.05,seed:5,bias:-.06});
-   stroke(g,[[cx+4,gy-25+sq],[cx+9,gy-18+sq*1.5],hand],R[2],2.6);ell(g,hand[0],hand[1],1.8,1.8,R[3]);px(g,hand[0]-1,hand[1]-1,R[4]);
-   // three eyes, the middle one higher, blinking out of step; a mouth that never closes
-   const hx=cx+15+L*2.5,hy=gy-27+sq*2.5;for(const[dx,dy,o]of[[-2,.5,0],[.5,-1.8,.33],[2,.8,.66]]){if(((u+o)%1)>.93)pline(g,hx+dx-1,hy+dy,hx+dx+1,hy+dy,R[0]);else{ell(g,hx+dx,hy+dy,1.6,1.6,R[0]);g.fillStyle=R[4];g.fillRect(Math.round(hx+dx-.5),Math.round(hy+dy-.5),1,1);}}
-   pline(g,hx-1,hy+3,hx+2,hy+3,R[0]);goo(g,R,hx,hy+3,u*2+.2,3+sq*2,gy-hy-6);
-   // the censer: a chain, a pierced pot, the glow inside
-   pline(g,hand[0],hand[1]+1,cz[0],cz[1]-3,R[1]);ell(g,cz[0],cz[1],3.4,3,R[0]);ell(g,cz[0]-.4,cz[1]-.5,2.6,2.2,R[2]);
-   for(const dx of[-1.4,1.4])px(g,cz[0]+dx,cz[1],Math.floor(u*24+dx)%3?R[4]:R[3]);px(g,cz[0],cz[1]-3.3,R[3]);
-   goo(g,R,cx-6,gy-12+sq,u*2+.5,2,10);
-   // the smoke the censer leaves, rising and spreading, oldest highest
-   for(let i=0;i<6;i++){const k=(u*3+i/6)%1,x=cz[0]+3+k*7+Math.sin(TAU*(k*1.5+i*.3))*2.5,y=cz[1]-3-k*24,r=1.2+k*3.4;
-    if(k<.6)ell(g,x,y,r*(k<.3?1:.8),r*(k<.3?.85:.7),k<.25?R[3]:R[2]);else for(let q=0;q<10;q++){const aa=TAU*q/10+k*3;px(g,x+Math.cos(aa)*r,y+Math.sin(aa)*r*.85,R[2]);}}
-   flies(g,R,cx+6,gy-40,5,10,5,u,31);}},
- // Hueilei: gladiators poured out of blood. Glossy where rot is matte; everything they do is on a heartbeat.
- // the tithe-runner: sprints bent double with a sloshing gullet on its back, bleeding a trail as it goes
- h_runner:{W:32,H:32,f(g,u,R,W,H){const p=TAU*u*2,bo=-Math.abs(Math.sin(p))*1.6,gy=30;
-   for(let i=0;i<6;i++){const t=(u*2+i/6)%1,x=12-t*14,y=gy-(t<.3?Math.sin(t/.3*Math.PI)*3:0);g.fillStyle=t<.4?R[3]:R[2];g.fillRect(Math.round(x),Math.round(y),t<.2?2:1,1);}
-   ell(g,6,gy,6,1,R[1]);
-   const sl=Math.sin(p-1.3);   // the gullet lags the stride
-   blobs(g,R,[{x:8-sl*.8,y:17+bo+sl*.8,r:3.3},{x:10,y:16+bo,r:2.3}],W,H,{bias:-.08});
-   const f=bloodBody(g,R,{hx:13,hy:21+bo,lean:.62,Lt:7,Wt:5,hr:4.6,Ll:4.4,Ls:4.6,Wl:2.6,La:3.8,Lf:3.4,Wa:2.1,legs:runLegs(p,.8),arms:runArms(p,.75)},W,H,u,{beats:4,heart:.8,veinSeed:3});
-   px(g,f.head[0]+2,f.head[1]-.5,R[4]);px(g,f.head[0]+2.5,f.head[1]-.5,R[0]);
-   goo(g,R,f.armF[2][0],f.armF[2][1],u*2,2,gy-f.armF[2][1]-3);
-   for(let i=0;i<2;i++)goo(g,R,7+i*3,19+bo,u*2+i*.5,2,gy-22);}},
- // the flayer: hunched over the town, two hooked arms taking turns; every pull opens a spurt and the pool sets as it grows
- h_flayer:{W:50,H:44,f(g,u,R,W,H){const gy=41,t=(u*2)%1,second=u>=.5;
-   const wind=smooth(0,.5,t),rip=smooth(.5,.6,t),sl=.2+2.5*wind-2.5*rip,front=second?.4:sl,back=second?sl:.4,heave=rip*(1-smooth(.6,.9,t));
-   const pool=.55+.45*Math.sin(TAU*u)*0+u*.0;ell(g,38,gy,11,2.2,R[1]);ell(g,37,gy-.5,8,1.4,R[2]);for(let i=0;i<5;i++)if(hash(i,4,2)<.7)g.fillStyle=R[0],g.fillRect(30+i*4,gy,2,1);
-   const f=bloodBody(g,R,{hx:18,hy:30-heave,lean:.85+heave*.15,Lt:10,Wt:7,hr:5,Ll:5.5,Ls:6,Wl:3.2,La:5.5,Lf:5.5,Wa:2.6,legs:[[-.4,-.1],[.5,.15]],arms:[[back,back+.6],[front,front+.6]]},W,H,u,{beats:2,heart:1,veinSeed:7,clot:3});
-   for(const[h,a]of[[f.armB[2],back],[f.armF[2],front]]){const d=a+.6,x2=h[0]+Math.sin(d)*9,y2=h[1]+Math.cos(d)*9,x3=x2+Math.sin(d+1.7)*4.5,y3=y2+Math.cos(d+1.7)*4.5;
-    stroke(g,[h,[x2,y2],[x3,y3]],R[0],2.6);stroke(g,[h,[x2,y2],[x3,y3]],R[4],1);}
-   ell(g,f.head[0]+1.5,f.head[1]+.8,2.4,2.2,R[0]);px(g,f.head[0]+2.5,f.head[1]+.5,R[4]);px(g,f.head[0]+.5,f.head[1]+.5,R[4]);
-   spurt(g,R,40,gy-4,-1.9,(t-.52)/.4,8,15,second?3:9);spurt(g,R,42,gy-2,-1.2,(t-.56)/.35,5,10,second?5:2);}},
- // the charger: stalks low, coils, then throws itself forward; the body smears behind it and it skids to a stop
- h_charger:{W:52,H:36,f(g,u,R,W,H){const gy=33,t=(u*2)%1;
-   const coil=smooth(.05,.4,t)*(1-smooth(.4,.46,t)),go=smooth(.4,.5,t),back=smooth(.7,1,t),dx=go*(1-back)*16,lean=.25-coil*.25+go*(1-back)*.75;
-   const p=TAU*(t<.4?t*1.2:.48),legs=go>0&&back<1?[[-1-.0*go,-.5],[.9,.2]].map((l,i)=>[l[0]*(1-back)+(i?.3:-.3)*back,l[1]*(1-back)]):runLegs(p,.35);
-   if(go>0&&back<.9){for(let i=0;i<4;i++){const y=14+i*4+coil,x0=6+dx*.2,x1=6+dx*.9;pline(g,x0+i*2,y,x1,y,i%2?R[2]:R[3]);}
-    for(let i=0;i<5;i++){const s=smooth(.5,.75,t);if(s>0&&s<1)px(g,24+dx-s*8-i*2,gy-1-Math.sin(s*Math.PI)*(3+i),R[i%2?3:4]);}}
-   const f=bloodBody(g,R,{hx:14+dx,hy:24+coil*3,lean,Lt:8,Wt:6.4,hr:4.6,Ll:4.8,Ls:5,Wl:3,La:4,Lf:4,Wa:2.6,legs,arms:[[-.6-coil*.6,.4],[1.4-coil*.8+go*(1-back)*.4,1.7]]},W,H,u,{beats:2+0,heart:1,veinSeed:11,clot:2});
-   crest(g,R,f.head,4.6);pline(g,f.head[0]+1,f.head[1],f.head[0]+4,f.head[1],R[4]);
-   const[sx,sy]=f.armF[2];ell(g,sx+1.5,sy-1,4.2,6.4,R[3]);ell(g,sx+2,sy-1,3,5.2,R[1]);ell(g,sx+2,sy-1,1.2,1.2,R[4]);px(g,sx+1,sy-5,R[4]);
-   goo(g,R,sx+1,sy+5,u*2,2,gy-sy-7);}},
- // the leader: stands at the back with a standard of running blood; when it calls a charge the standard lifts and it roars a spray
- h_leader:{W:56,H:66,f(g,u,R,W,H){const gy=63,raise=smooth(.42,.52,u)*(1-smooth(.75,.9,u)),tilt=.18+raise*.38,sway=Math.sin(TAU*u*2)*.5;
-   // a cape of blood behind it, hanging off the shoulders and moving a beat late
-   {const pts=[];for(let k=0;k<=8;k++){const t=k/8;pts.push([19-t*7+Math.sin(TAU*u*2-k*.7)*t*1.8,28+t*31]);}
-    poly(g,[[22,27],...pts,[pts[8][0]+7,pts[8][1]+1],[24,40]],R[1]);for(let k=2;k<8;k+=2)pline(g,pts[k][0]+1,pts[k][1],pts[k][0]+3,pts[k][1]+3,R[0]);goo(g,R,pts[8][0]+2,pts[8][1],u*2,2,gy-pts[8][1]-1);}
-   const f=bloodBody(g,R,{hx:22+sway*.4,hy:48,lean:.04-raise*.08,Lt:12,Wt:8.4,hr:5.6,Ll:7.5,Ls:7.8,Wl:4,La:6.4,Lf:5.4,Wa:3,legs:[[-.24,-.1],[.3,.12]],arms:[[.2,.1],[2.25-raise*.45,2.95-raise*.35]]},W,H,u,{beats:2,heart:1.3,veinSeed:5,clot:4});
-   crest(g,R,f.head,5.6);pline(g,f.head[0]+1,f.head[1],f.head[0]+5,f.head[1],R[4]);
-   if(raise>.5){ell(g,f.head[0]+4,f.head[1]+2,1.6,1.4*raise,R[0]);spurt(g,R,f.head[0]+5,f.head[1]+2,-.4,(u-.47)/.2,7,14,4);}
-   const[hx,hy]=f.armF[2],tx=hx+Math.sin(tilt)*28,ty=hy-Math.cos(tilt)*28;
-   stroke(g,[[hx-Math.sin(tilt)*6,hy+Math.cos(tilt)*6],[tx,ty]],R[0],2.4);pline(g,hx-Math.sin(tilt)*6,hy+Math.cos(tilt)*6,tx,ty,R[2]);
-   // the standard: a sheet of blood that ripples and drains off its lower edge
-   for(let c=0;c<14;c++){const wave=Math.sin(TAU*u*2-c*.5)*1.6*(c/13),x=tx+c-1,y0=ty+2+wave,len=14+Math.round(2*Math.sin(TAU*u*2-c*.9+1));
-    for(let r=0;r<len;r++){g.fillStyle=r<2?R[4]:(r+c)%6===0?R[4]:r>len-3?R[2]:R[3];g.fillRect(Math.round(x),Math.round(y0+r),1,1);}
-    if(c%3===1)goo(g,R,x,y0+len,u*2+c*.17,2,gy-y0-len-2);}
-   pline(g,tx-1,ty+1,tx+14,ty+1,R[4]);}},
- // the arena: a heart the size of a man in a body the size of a house; it hammers the ground and the pool it stands in answers
- h_arena:{W:110,H:92,f(g,u,R,W,H){const c=50,gy=82,b=beat(u*2);
-   const up=smooth(.2,.5,u)*(1-smooth(.55,.6,u)),down=smooth(.55,.6,u)*(1-smooth(.85,1,u)),hit=u>.58&&u<.85?(u-.58)/.27:0;
-   ell(g,c+4,gy,46,9,R[1]);ell(g,c+4,gy-1,38,6,R[2]);for(let i=0;i<14;i++){const a=TAU*i/14;g.fillStyle=R[0];g.fillRect(Math.round(c+4+Math.cos(a)*44),Math.round(gy+Math.sin(a)*8.4),3,1);}
-   for(let k=0;k<2;k++){const rp=(u*2+k*.5)%1;g.strokeStyle=rp<.5?R[3]:R[2];g.lineWidth=1;g.beginPath();g.ellipse(c+4,gy-1,6+rp*36,1.5+rp*7,0,0,TAU);g.stroke();}
-   const crouch=down*4,fist=[c+33+up*2,64-up*50+down*12+crouch*.5],sh=[c+14,36+crouch],bsh=[c-14,36+crouch],bf=[c-26,66+crouch*.3],br=1+.07*b;
-   const el=[sh[0]+12-up*2,sh[1]+12-up*24+down*4];
-   stroke(g,[bsh,[c-25,50+crouch],bf],R[1],9);ell(g,bf[0],bf[1],6,5.5,R[1]);
-   blobs(g,R,[{x:c,y:68+crouch*.4,r:10},{x:c,y:57+crouch,r:12*br},{x:c,y:44+crouch,r:14*br},{x:c-12,y:36+crouch,r:8},{x:c+12,y:36+crouch,r:8}],W,H,{seed:6});
-   // the heart and the veins it drives, visible through the chest
-   const hx=c+3,hy=47+crouch,r=rng(17);for(let v=0;v<7;v++){let a=r()*TAU,x=hx,y=hy;for(let s=0;s<4;s++){const L=2.5+r()*3,x1=x+Math.cos(a)*L,y1=y+Math.sin(a)*L*.9;pline(g,x,y,x1,y1,b>.55?R[4]:R[1]);x=x1;y=y1;a+=(r()-.5)*1.2;}}
-   ell(g,hx,hy,2.8+b*1.8,2.6+b*1.6,R[1]);ell(g,hx,hy,1.8+b*1.6,1.7+b*1.5,b>.5?R[4]:R[3]);px(g,hx-1,hy-1,R[4]);
-   stroke(g,[[c,36+crouch],[c+1,29+crouch]],R[1],6);ell(g,c+1,24+crouch,7.5,8,R[2]);ell(g,c-1,21+crouch,3.5,3,R[3]);
-   crest(g,R,[c+1,24+crouch],7.5);pline(g,c-4,25+crouch,c-1,26+crouch,R[4]);pline(g,c+3,26+crouch,c+6,25+crouch,R[4]);
-   stroke(g,[sh,el,fist],R[2],10);stroke(g,[[sh[0]-1,sh[1]-2],[el[0]-1,el[1]-2]],R[3],3);
-   ell(g,fist[0],fist[1],7,6.5,R[2]);ell(g,fist[0]-2,fist[1]-2,3,2.5,R[3]);ell(g,sh[0],sh[1]-1,7,5.5,R[3]);px(g,sh[0]-2,sh[1]-4,R[4]);
-   if(hit>0){const k=hit;g.strokeStyle=R[4];g.lineWidth=1.4;g.beginPath();g.ellipse(fist[0],gy-2,4+k*20,1+k*4,0,0,TAU);g.stroke();
-    // the crown of the splash
-    for(let i=0;i<9;i++){const a=Math.PI*(.08+.84*i/8),s=k<.3?2:1;g.fillStyle=i%2?R[3]:R[4];g.fillRect(Math.round(fist[0]+Math.cos(a)*k*20),Math.round(gy-4-Math.sin(a)*k*26+k*k*24),s,s);}
-    spurt(g,R,fist[0]-4,gy-6,-2.2,k,6,18,8);spurt(g,R,fist[0]+4,gy-6,-.9,k,6,18,9);}
-   goo(g,R,bf[0]-2,bf[1]+5,u*2,3,gy-bf[1]-8,2);goo(g,R,el[0],el[1]+4,u*2+.4,3,gy-el[1]-8);}},
+ // Gwulhorlw: rot that walks. Bone shows through everywhere (the palest stop is always bone), flesh hangs off it in dark rags,
+ // and what grows on the dead (sores, tumours, mushrooms, flies) is the god's. Slow, heavy, lurching; nothing here is round.
+ // Scab, the minion: a flayed carrion-dog with its ribs open, carrying the blood home in a sac inside the cage; scurries, smears rot
+ g_weeper:{W:36,H:28,f(g,u,R,W,H){const gy=27,ph=u*3,bob=-Math.abs(Math.sin(TAU*ph))*1.2,hb=Math.sin(TAU*ph+1)*.8;
+   for(let x=0;x<12;x++){px(g,x,gy,R[1]);if((x+Math.floor(u*3*12))%4===0)px(g,x,gy-1,R[2]);}
+   const hip=[11,15+bob],sh=[23,15+bob],sp=qpts(hip,[17,10.5+bob],sh,6);
+   const leg=(root,p,bx,l1,l2,s,c,lit,w)=>{const f=stepFoot(p,bx,gy,6,2.2),k=ik(root,f,l1,l2,s);bones(g,root,k,f,w,w*.75,w*.6,c,lit);px(g,f[0]+1,f[1],c);};
+   leg([hip[0]+1.5,hip[1]],ph+.5,13,6,7,-1,R[1],0,1.8);leg([sh[0]+1.5,sh[1]],ph,26,6,6.5,1,R[1],0,1.8);
+   // the tail, vertebra by vertebra
+   for(let i=1;i<6;i++)px(g,hip[0]-i*1.5,hip[1]-i*.6+Math.sin(TAU*(ph+i*.12))*i*.35,i<3?R[3]:R[2]);
+   // the sac of blood it carries, inside the open ribcage
+   ell(g,17,18.5+bob,4.4,3.2,R[0]);ell(g,16.8,18.3+bob,3.6,2.5,R[1]);px(g,15.5,17.5+bob,R[3]);
+   for(let i=0;i<5;i++){const s=sp[1+i],e=[s[0]+1.2,hip[1]+5.2-Math.abs(i-2)*.7];stroke(g,qpts(s,[s[0]+2.4,s[1]+2.5],e,4),R[4],1);}
+   stroke(g,sp,R[3],2);for(let i=0;i<sp.length;i+=1)px(g,sp[i][0],sp[i][1]-1,R[4]);
+   // rags of hide hanging off the spine
+   for(const[i,l]of[[2,3],[4,4]]){const s=sp[i],sw=Math.sin(TAU*ph+i)*1;pline(g,s[0],s[1],s[0]-1+sw,s[1]+l,R[2]);}
+   leg(hip,ph,11,6,7,-1,R[3],R[4],2);leg(sh,ph+.5,24,6,6.5,1,R[3],R[4],2);
+   // neck and skull, low and forward; the jaw works as it runs
+   const hx=28,hy=14+bob+hb,jaw=Math.sin(TAU*ph)>0?1:0;stroke(g,[sh,[hx-1,hy]],R[3],2);
+   ell(g,hx,hy,3,2.4,R[4]);poly(g,[[hx+1,hy-1.6],[hx+6,hy],[hx+6,hy+1.4],[hx+1,hy+1.8]],R[4]);pline(g,hx-2,hy+2,hx+2,hy+2,R[3]);
+   g.fillStyle=R[0];g.fillRect(Math.round(hx),Math.round(hy-1),2,1);px(g,hx+5,hy,R[0]);
+   pline(g,hx+1,hy+3,hx+5,hy+2+jaw,R[3]);px(g,hx+3,hy+2,R[4]);px(g,hx+5,hy+2,R[4]);
+   goo(g,R,17,21+bob,u*3,1.5,gy-23-bob);flies(g,R,17,6,2,6,2.5,u,5);}},
+ // Tumour, the sieger: a skeleton on all fours, feeding with its face in the ground; the tumour on its back swells as it eats, then vents spores
+ g_teratoma:{W:56,H:46,f(g,u,R,W,H){const gy=45,bt=(u*2)%1,dip=smooth(.2,.35,bt)*(1-smooth(.5,.7,bt)),sw=u<.84?smooth(0,.84,u):1-smooth(.84,1,u),k=.7+sw*.3;
+   const hip=[13,27],sh=[35,26+dip],sp=qpts(hip,[24,21],sh,8);
+   // far limbs
+   {const f=[9,gy],kn=ik(hip,f,10,10,-1);bones(g,hip,kn,f,3,2.2,1.6,R[1]);const h=[43,gy],e=ik(sh,h,10,11,1);bones(g,sh,e,h,2.6,2,1.4,R[1]);}
+   // the open belly and its ribs
+   poly(g,[...sp.slice(1,8),[sh[0]-1,sh[1]+7],[hip[0]+3,hip[1]+7]],R[0]);
+   for(let i=1;i<8;i++){const s=sp[i];stroke(g,qpts(s,[s[0]+2,s[1]+4.5],[s[0]+.5,hip[1]+7-Math.abs(i-4)*.5],4),R[4],1.2);}
+   stroke(g,sp,R[3],2.5);for(const p of sp)px(g,p[0],p[1]-1.2,R[4]);
+   // near limbs: a hind leg folded under, a long arm reaching and gripping, elbow high
+   {const f=[17,gy],kn=ik(hip,f,10,10,-1);bones(g,hip,kn,f,3.4,2.4,1.8,R[3],R[4]);px(g,f[0]+1,gy,R[3]);
+    const h=[47,gy],e=ik([sh[0]+1,sh[1]],h,10,11,1);bones(g,[sh[0]+1,sh[1]],e,h,3,2.2,1.6,R[3],R[4]);for(const d of[-1,1,3])px(g,h[0]+d,gy,R[4]);}
+   // skull, face down in the town, the jaw tearing
+   {const hx=43,hy=34+dip*5,j=Math.sin(TAU*bt*2)*.8;stroke(g,[sh,[hx-2,hy-1]],R[2],3);
+    ell(g,hx,hy,3.6,3.2,R[4]);poly(g,[[hx,hy-1],[hx+6,hy+2],[hx+5,hy+4],[hx,hy+3]],R[4]);ell(g,hx+1,hy+1.8,2.2,1,R[3]);
+    g.fillStyle=R[0];g.fillRect(Math.round(hx),Math.round(hy-1),2,2);px(g,hx+5,hy+2,R[0]);
+    pline(g,hx-1,hy+4,hx+4,hy+5+j,R[3]);px(g,hx+2,hy+4,R[4]);px(g,hx+4,hy+4,R[4]);}
+   // the tumour bursting out between the shoulder blades: a few hard knots, split open, and a stand of mushrooms on them
+   const N=[[0,0,5.5],[-6,2.5,3.6],[5.5,2.5,3.8],[1.5,-4.5,3.4]],at=([dx,dy,r])=>[25+dx*k,21+(dy-2)*k,r*k];
+   for(const n of N){const[x,y,r]=at(n);knob(g,R,x,y,r,2);}
+   {const[x,y,r]=at(N[0]);pline(g,x-r*.6,y+r*.2,x+r*.5,y-r*.3,R[0]);px(g,x,y,R[4]);pline(g,x-r*.5,y+r*.5,x+r*.4,y+r*.1,R[1]);}
+   for(const[x,y]of[[-5,2],[5,3]]){const p=[25+x*k,19+y*k];px(g,p[0],p[1],R[0]);px(g,p[0],p[1]-1,R[4]);}
+   const M=[[-6,0,6,1.8,-1.2],[-2,-6,9,2.6,-.4],[2.5,-6,12,3,.3],[6,-1,7,2,1.4],[-8.5,2,4,1.4,-1.5],[8.5,2,4.5,1.5,1.6]];
+   for(const[dx,dy,h,w,l]of M){const x=25+dx*k,y=17+dy*k;shroom(g,R,x,y,h*(.6+sw*.5),w,l+Math.sin(TAU*u+dx)*.6);}
+   // the vent, when it is full
+   if(u>.82){const t=(u-.82)/.18;for(let i=0;i<6;i++){const a=-Math.PI/2+(i-2.5)*.4,d=6+t*12,x=27+Math.cos(a)*d,y=6+Math.sin(a)*d-t*3;if(t<.6)ell(g,x,y,.8+t*1.4,.8+t*1.1,R[3]);else px(g,x,y,R[3]);}}
+   goo(g,R,30,29+dip,bt,3,gy-34,1);flies(g,R,26,8,3,12,4,u,21);}},
+ // Bloater, the grunt: a walking corpse whose gut has outgrown its ribs; it shambles, one arm reaching, one arm dead, and splits where it is stretched
+ g_gnasher:{W:32,H:33,f(g,u,R,W,H){const gy=32,ph=u*2,L=lurch(ph%1,.3),bob=-L*1.4,sw=Math.sin(TAU*ph)*.7;
+   const hip=[14,21+bob],ch=[18,12+bob],hd=[22,7.5+bob+(1-L)*.8];
+   const leg=(p,c,lit,w,dx)=>{const f=stepFoot(p,15+dx,gy,5,1.6),kn=ik(hip,f,6,6,1);bones(g,[hip[0]+dx,hip[1]],kn,f,w,w*.8,w*.7,c,lit);pline(g,f[0],f[1],f[0]+2,f[1],c);};
+   leg(ph+.5,R[1],0,2,-1);
+   // the dead arm hangs and swings
+   {const s=[16,13+bob],h=[13.5+Math.sin(TAU*ph+1.2)*1.8,24+bob],e=ik(s,h,5.5,5.5,-1);bones(g,s,e,h,2,1.6,1.2,R[1]);}
+   stroke(g,[hip,ch],R[2],3.4);
+   // ribcage over a dark chest, then the swollen gut below it
+   poly(g,[[15,10.5+bob],[21.5,10.5+bob],[22,16+bob],[15,16.5+bob]],R[0]);
+   for(let i=0;i<3;i++)stroke(g,qpts([15,11.5+i*1.8+bob],[19,13.2+i*1.8+bob],[21.5,11.6+i*1.8+bob],4),R[4],1);
+   const jig=Math.sin(TAU*ph-1)*.5,bc=[18,20.5+bob+jig];
+   ell(g,bc[0],bc[1],5.6,4.4,R[1]);ell(g,bc[0]+.2,bc[1]+.1,4.9,3.8,R[2]);ell(g,bc[0]-1.4,bc[1]-1.3,2.6,1.8,R[3]);px(g,bc[0]-2.4,bc[1]-2,R[4]);
+   pline(g,bc[0]-2,bc[1]+.5,bc[0]+3,bc[1]+2.5,R[0]);px(g,bc[0],bc[1]+.5,R[4]);px(g,bc[0]+2,bc[1]+1.2,R[3]);
+   leg(ph,R[3],R[4],2.2,1);
+   // the skull, hanging forward, jaw loose
+   stroke(g,[ch,[hd[0]-1,hd[1]+1]],R[2],2.4);ell(g,hd[0],hd[1],3.2,3,R[4]);ell(g,hd[0]-1.6,hd[1]+.6,1.6,1.8,R[2]);
+   g.fillStyle=R[0];g.fillRect(Math.round(hd[0]),Math.round(hd[1]-1),2,2);px(g,hd[0]+2.6,hd[1]+.6,R[0]);
+   g.fillStyle=R[4];g.fillRect(Math.round(hd[0]),Math.round(hd[1]+2),3,1);
+   poly(g,[[hd[0]-1,hd[1]+3],[hd[0]+3,hd[1]+3],[hd[0]+3,hd[1]+4.5+L*1.5],[hd[0],hd[1]+4+L*1.5]],R[3]);px(g,hd[0]+1,hd[1]+3.5,R[0]);
+   // the reaching arm, claws open
+   {const s=[20,12.5+bob],h=[27.5+sw,14+bob+Math.sin(TAU*ph+.5)*1],e=ik(s,h,5,5,-1);bones(g,s,e,h,2.2,1.7,1.3,R[3],R[4]);px(g,h[0]+1,h[1]-1,R[4]);px(g,h[0]+1.5,h[1]+.5,R[4]);px(g,h[0]+1,h[1]+1.6,R[3]);}
+   goo(g,R,bc[0]+2,bc[1]+3,ph+.3,1.5,gy-bc[1]-5);flies(g,R,21,3,3,6,2.5,u,9);}},
+ // the leader: a gaunt plague-shepherd in a rotted cowl, crowned with mushrooms, the ribs bare under the robe;
+ // it lifts a crook hung with a lantern of bone, and the spores it breathes out heal the pack
+ g_mother:{W:46,H:56,f(g,u,R,W,H){const gy=55,st=(u*2)%1,bob=-Math.abs(Math.sin(TAU*st*.5))*1.2,pu=smooth(0,.1,u)*(1-smooth(.25,.5,u)),lift=pu*3;
+   // the pulse: a ring of spores across the ground
+   if(u<.55){const t=u/.55;g.strokeStyle=t<.5?R[3]:R[2];g.lineWidth=1;g.beginPath();g.ellipse(23,gy-1,5+t*18,1.5+t*4,0,0,TAU);g.stroke();}
+   // the robe, tattered at the hem
+   const hem=[];for(let i=0;i<=9;i++){const x=36-i*3,y=gy-(i%2?1:4.5)+Math.sin(TAU*(u*2+i*.17))*1;hem.push([x+Math.sin(TAU*u*2+i*.3)*.6,y]);}
+   poly(g,[[16,18+bob],[28,17+bob],[33,30+bob],...hem,[11,30+bob]],R[1]);
+   for(const[x0,x1]of[[16,12],[20,18],[25,27]])pline(g,x0,20+bob,x1+Math.sin(TAU*u*2+x0)*.8,gy-6,R[2]);pline(g,15,19+bob,11,30+bob,R[2]);pline(g,11,31+bob,8,gy-5,R[2]);
+   // bony feet under the hem, by turns
+   for(const[x,p]of[[19,0],[26,.5]]){const lifted=((st+p)%1)<.5;px(g,x,gy-(lifted?1:0),R[4]);px(g,x+1,gy-(lifted?1:0),R[4]);px(g,x+2,gy,R[3]);}
+   // the robe falls open over the ribs
+   poly(g,[[19,19+bob],[26,19+bob],[25,29+bob],[20,29+bob]],R[0]);for(let i=0;i<4;i++)stroke(g,qpts([19.5,20.5+i*2.2+bob],[22.5,21.8+i*2.2+bob],[25.3,20.6+i*2.2+bob],4),R[4],1);
+   pline(g,22.5,20+bob,22.5,28+bob,R[3]);goo(g,R,22,29+bob,u*2,2,gy-33);
+   // the crook and its lantern
+   const top=[34,6+bob-lift],sx=35;stroke(g,[[sx,gy],[top[0],top[1]]],R[3],1.6);pline(g,top[0]-.5,top[1]+2,sx-.5,gy-2,R[4]);
+   stroke(g,qpts(top,[top[0]+2,top[1]-5],[top[0]+7,top[1]-1],5),R[4],1.6);
+   const th=.35*Math.sin(TAU*u*2),lp=[top[0]+7+Math.sin(th)*5,top[1]+Math.cos(th)*5];pline(g,top[0]+7,top[1],lp[0],lp[1]-2,R[1]);
+   ell(g,lp[0],lp[1]+1,2.8,3.4,R[1]);ell(g,lp[0],lp[1]+1,1.6,2.2,pu>.3?R[4]:R[3]);for(const d of[-2,0,2])pline(g,lp[0]+d,lp[1]-2,lp[0]+d,lp[1]+4,R[4]);
+   for(let i=0;i<5;i++){const t=(u*2+i/5)%1,x=lp[0]+(i-2)*1.5+Math.sin(TAU*(t+i*.3))*2*t,y=lp[1]+4+t*14;if(t<.85)px(g,x,y,t<.4?R[4]:R[3]);}
+   // the sleeve to the crook, a bone hand round it
+   {const s=[27,19+bob],h=[sx-.5,27+bob-lift];taper(g,s,h,4,3,R[1]);pline(g,s[0],s[1]-1,h[0]-1,h[1]-1.5,R[2]);px(g,h[0]-1,h[1],R[4]);px(g,h[0]+1,h[1],R[4]);px(g,h[0]+1,h[1]+1,R[4]);}
+   // the cowl, hung forward, a skull for a face
+   const hx=27,hy=11+bob;poly(g,[[17,19+bob],[18,9+bob],[22,3.5+bob],[28,4.5+bob],[32,10+bob],[31.5,18+bob]],R[2]);pline(g,18,9+bob,22,4+bob,R[3]);
+   ell(g,hx,hy,3.8,4.4,R[0]);ell(g,hx+.4,hy+.3,3,3.6,R[4]);
+   g.fillStyle=R[0];g.fillRect(hx-2,hy-1,2,2);g.fillRect(hx+1,hy-1,2,2);px(g,hx+.5,hy+1.4,R[0]);pline(g,hx-1.5,hy+2.6,hx+2.5,hy+2.6,R[1]);
+   if(pu>.3){px(g,hx-1,hy-.5,R[3]);px(g,hx+2,hy-.5,R[3]);}
+   // a crown of mushrooms growing out of the cowl
+   shroom(g,R,20,6+bob,4,2,-1.4);shroom(g,R,24.5,4+bob,6+pu,2.6,Math.sin(TAU*u)*.6);shroom(g,R,28.5,5+bob,3.5,1.8,1.2);
+   flies(g,R,lp[0],lp[1]+1,4,5,4,u,13);}},
+ // the titan: a carcass the size of a barn, an ox gone to bone, walking; its ribs are a cage round a wound that pulses rot every four seconds
+ g_spider:{W:124,H:94,f(g,u,R,W,H){const gy=92,pk=u<.05?smooth(0,.05,u):1-smooth(.05,.35,u),bob=Math.sin(TAU*u*2)*1.2,hb=Math.sin(TAU*u*2+.6)*1.5;
+   // the rot pool it stands in, and the pulse spreading out of it
+   ell(g,60,gy,40,4.5,R[1]);g.strokeStyle=R[2];g.lineWidth=1;g.beginPath();g.ellipse(60,gy,34,3.4,0,0,TAU);g.stroke();
+   if(u<.6){const t=u/.6;g.strokeStyle=t<.4?R[4]:R[3];g.lineWidth=t<.3?2:1;g.beginPath();g.ellipse(60,gy,12+t*50,2+t*5,0,0,TAU);g.stroke();}
+   const hip=[34,40+bob],wi=[80,33+bob],sp=qpts(hip,[57,29+bob],wi,12);
+   const leg=(root,p,bx,l1,l2,c,lit,w)=>{const f=stepFoot(p,bx,gy-1,14,5),kn=ik(root,f,l1,l2,-1);bones(g,root,kn,f,w,w*.65,w*.5,c,lit);g.fillStyle=c;g.fillRect(Math.round(f[0]-2),Math.round(f[1]-1),5,2);return kn;};
+   leg([hip[0]+4,hip[1]+2],u+.5,40,27,28,R[1],0,6);leg([wi[0]-3,wi[1]+6],u+.75,80,24,26,R[1],0,5.5);
+   // the tail, hanging
+   stroke(g,qpts(hip,[24,44+bob],[23,58+Math.sin(TAU*u)*2]),R[2],2);
+   // the cage: a dark hollow, the wound in it, the ribs over it
+   poly(g,[...sp.slice(3,12),[76,66+bob],[60,69+bob],[47,64+bob]],R[0]);
+   const wc=[62,51+bob],wr=6+pk*2.2;
+   for(let i=0;i<6;i++){const a=i*1.05+.3;pline(g,wc[0],wc[1],wc[0]+Math.cos(a)*(wr+5),wc[1]+Math.sin(a)*(wr+4),R[1]);}
+   knob(g,R,wc[0],wc[1],wr,3);ell(g,wc[0]+1,wc[1]+1,wr*.45,wr*.35,pk>.4?R[4]:R[1]);
+   goo(g,R,wc[0]-1,wc[1]+wr,u*2,3,gy-wc[1]-wr-6,2);goo(g,R,wc[0]+4,wc[1]+wr-1,u*2+.5,2,gy-wc[1]-wr-6,1);
+   for(let i=0;i<7;i++){const s=sp[4+i],e=[s[0]+2-i*.3,66+bob-Math.abs(i-3)*.8+(i%2)];stroke(g,qpts(s,[s[0]+6,s[1]+15],e,6),R[4],2.2);pline(g,s[0]+2,s[1]+5,e[0]+1.5,e[1]-3,R[3]);}
+   // hide still on the haunch: dark, sore-pitted, torn at the bottom edge
+   const tear=[];for(let i=0;i<7;i++)tear.push([47-i*3.6,56+bob+(i%2?5:0)+Math.sin(TAU*u+i)*.8]);
+   poly(g,[[23,38+bob],[36,31+bob],[47,33+bob],[49,42+bob],...tear,[22,48+bob]],R[2]);
+   pline(g,24,38+bob,36,32+bob,R[3]);pline(g,36,32+bob,46,34+bob,R[3]);poly(g,[[40,46+bob],[49,42+bob],[47,56+bob],[40,58+bob]],R[1]);
+   for(const[x,y]of[[30,44],[38,40],[34,51],[43,49]]){ell(g,x,y+bob,1.6,1.2,R[0]);px(g,x-1,y-1+bob,R[3]);}
+   ell(g,33,37+bob,4.5,2.6,R[4]);px(g,31,36+bob,R[3]);
+   // bracket fungus on the haunch
+   for(const[x,y,w]of[[27,46,3.4],[29,49,2.6]]){ell(g,x,y+bob,w,1.5,R[3]);pline(g,x-w+.5,y+bob+1,x+w-.5,y+bob+1,R[1]);pline(g,x-w+1,y+bob-1,x+w-1,y+bob-1,R[4]);}
+   // the spine: a ridge of bone knives, mushrooms between them
+   stroke(g,sp,R[3],3);pline(g,sp[0][0],sp[0][1]-1,sp[12][0],sp[12][1]-1,R[4]);
+   for(let i=1;i<12;i++){const[x,y]=sp[i],h=4+(i%3)*1.5;poly(g,[[x-1.4,y],[x+1.4,y],[x-1+h*.25,y-h]],R[4]);}
+   for(const[i,h,w]of[[3,4,2.2],[6,5,2.6],[9,3.5,1.8]]){const[x,y]=sp[i];shroom(g,R,x+1.8,y-1,h,w,Math.sin(TAU*u+i)*.8);}
+   // the near legs, and the shoulder blade over the front one
+   leg(hip,u,34,27,28,R[3],R[4],7);const fk=leg([wi[0]-1,wi[1]+8],u+.25,82,24,26,R[3],R[4],6.5);
+   poly(g,[[74,33+bob],[84,32+bob],[81,49+bob],[74,46+bob]],R[4]);poly(g,[[79,33+bob],[84,32+bob],[81,49+bob],[78,47+bob]],R[3]);
+   for(let i=0;i<3;i++)pline(g,75+i*2,47+bob,74+i*2+Math.sin(TAU*u+i),52+bob+i%2*2,R[2]);
+   // the neck, and the skull hanging off it, horns crusted with growth
+   const sk=[103,55+bob+hb],nk=qpts(wi,[94,35+bob],[sk[0]-3,sk[1]-6],6);
+   for(let i=0;i<nk.length-1;i++)taper(g,nk[i],nk[i+1],7-i*.5,6.5-i*.5,R[2]);for(const p of nk)px(g,p[0],p[1]-2.5,R[4]);
+   stroke(g,qpts([sk[0]-3,sk[1]-5],[sk[0]-12,sk[1]-14],[sk[0]-4,sk[1]-22],6),R[3],2.6);
+   poly(g,[[sk[0]-5,sk[1]-6],[sk[0]+4,sk[1]-7],[sk[0]+7,sk[1]-1],[sk[0]+9,sk[1]+9],[sk[0]+6,sk[1]+12],[sk[0]+2,sk[1]+11],[sk[0]-3,sk[1]+1]],R[4]);
+   poly(g,[[sk[0]+4,sk[1]-7],[sk[0]+7,sk[1]-1],[sk[0]+9,sk[1]+9],[sk[0]+6,sk[1]+12],[sk[0]+5,sk[1]+2]],R[3]);
+   ell(g,sk[0],sk[1]-2,2.2,2,R[0]);px(g,sk[0]-.5,sk[1]-2.5,R[2]);g.fillStyle=R[0];g.fillRect(Math.round(sk[0]+5),Math.round(sk[1]+8),2,2);
+   for(let i=0;i<3;i++)px(g,sk[0]+2+i*1.5,sk[1]+11,R[1]);
+   stroke(g,qpts([sk[0]+1,sk[1]-6],[sk[0]+12,sk[1]-14],[sk[0]+5,sk[1]-24],6),R[4],3);pline(g,sk[0]+2,sk[1]-7,sk[0]+9,sk[1]-15,R[3]);
+   shroom(g,R,sk[0]+8,sk[1]-14,3,2,1);shroom(g,R,sk[0]-8,sk[1]-14,2.5,1.6,-1);
+   flies(g,R,62,46,7,22,10,u,21);}},
+ // Hueilei: the arena. Its servants are flayed fighters: skinless muscle in dark red, striped with the lit fibre, and armour
+ // picked out in the palest stop. Everything is sharp (horns, hooks, blades, crests) and every move is a fighter's: a wind-up, then the hit.
+ // Tithe-runner, the minion: a skinless courier sprinting home bent double under an amphora of blood that slops over as it runs
+ h_runner:{W:32,H:30,f(g,u,R,W,H){const gy=29,ph=u*3,bob=-Math.abs(Math.cos(TAU*ph))*1.4+.6;
+   for(let i=0;i<5;i++){const x=((i*5-u*3*15)%16+16)%16;px(g,x,gy,R[2]);if(i%2)px(g,x+1,gy,R[3]);}
+   for(const[y,l,o]of[[11,4,0],[17,3,2],[22,4,1]]){const x=((o*3-u*48)%6+6)%6;pline(g,x,y+bob,x+l,y+bob,R[1]);}
+   const hip=[14,18+bob],sh=[19.5,11+bob],hd=[23,7.5+bob];
+   const leg=(p,c,lit,w)=>{const f=stepFoot(p,15,gy,10,4),k=ik(hip,f,6.5,6.5,1);bones(g,hip,k,f,w,w*.8,w*.6,c,lit);pline(g,f[0],f[1],f[0]+2,f[1],R[0]);};
+   leg(ph+.5,R[1],0,2.4);
+   // the amphora on its back, strapped on, slopping
+   const a=[9,10+bob*.5+Math.sin(TAU*ph-1)*.4];pline(g,a[0]+2,a[1]-4,sh[0],sh[1],R[0]);
+   ell(g,a[0],a[1],4.4,5.6,R[1]);ell(g,a[0]+.3,a[1]+.2,3.7,4.9,R[2]);ell(g,a[0]-1,a[1]-.8,2.4,3.4,R[3]);pline(g,a[0]-2.5,a[1]-3,a[0]-2.5,a[1]+1,R[4]);
+   pline(g,a[0]-3.5,a[1]-2,a[0]+3.5,a[1]-2,R[1]);pline(g,a[0]-3.5,a[1]+2.5,a[0]+3.5,a[1]+2.5,R[1]);
+   g.fillStyle=R[2];g.fillRect(Math.round(a[0]-1),Math.round(a[1]-7.5),2,2.5);g.fillStyle=R[4];g.fillRect(Math.round(a[0]-1.5),Math.round(a[1]-8),3,1);
+   spurt(g,R,a[0],a[1]-8,-2.5,(ph*1+.2)%1,4,7,3);
+   // the body: flayed, the lit fibres striped down it
+   taper(g,hip,sh,4.4,5.2,R[2]);pline(g,hip[0]-1.5,hip[1]-1,sh[0]-2,sh[1],R[3]);pline(g,hip[0]+.5,hip[1]-2,sh[0],sh[1]+1.5,R[3]);
+   pline(g,hip[0]+1,hip[1]-4,hip[0]+3.5,hip[1]-3,R[1]);px(g,hip[0]-1,hip[1]-3,R[1]);
+   // the back arm hauls on the strap; the front arm pumps
+   {const h=[a[0]+3,a[1]-1],e=ik(sh,h,4,4,1);bones(g,sh,e,h,2,1.6,1.4,R[1]);}
+   leg(ph,R[2],R[3],2.6);
+   {const h=[sh[0]+3.5*Math.cos(TAU*ph),sh[1]+5+1.5*Math.sin(TAU*ph)],e=ik(sh,h,4,4,-1);bones(g,sh,e,h,2.2,1.8,1.6,R[2],R[3]);px(g,h[0],h[1],R[3]);}
+   // a bald, skinned head; the grin is all teeth
+   ell(g,hd[0],hd[1],2.9,3,R[2]);pline(g,hd[0]-2,hd[1]-2,hd[0]+1,hd[1]-3,R[3]);px(g,hd[0]+1.4,hd[1]-.6,R[4]);
+   g.fillStyle=R[4];g.fillRect(Math.round(hd[0]),Math.round(hd[1]+1.4),3,1);px(g,hd[0]+1,hd[1]+2.4,R[0]);
+   // it bleeds as it runs
+   drip(g,R,13,20+bob,u,3,0,8);drip(g,R,17,16+bob,u,3,1,12);}},
+ // Flayer, the sieger: a hooded executioner in a butcher's apron; it whirls a hook on a chain, rips it down into the town, and drags the flesh back
+ h_flayer:{W:58,H:46,f(g,u,R,W,H){const gy=45,s=(u*2)%1,ln=key(s,[[0,0],[.45,-2],[.56,3],[.62,3],[1,0]]);
+   const hip=[22,29],sh=[25+ln,17],hd=[27+ln*1.2,10];
+   // the far leg, the back arm and its spare hook hanging
+   {const f=[12,gy],k=ik([hip[0]-2,hip[1]],f,9,9.5,1);bones(g,[hip[0]-2,hip[1]],k,f,4.4,3.6,3,R[1]);g.fillStyle=R[0];g.fillRect(f[0]-2,gy-1,5,2);}
+   const bh=[18+ln*.4,27],hk2=[16+Math.sin(TAU*u)*3,39];
+   {const e=ik([sh[0]-4,sh[1]+1],bh,6,6,1);bones(g,[sh[0]-4,sh[1]+1],e,bh,3.6,3,2.6,R[1]);}links(g,R,bh,hk2,1,3);
+   stroke(g,[[hk2[0],hk2[1]],[hk2[0],hk2[1]+3],[hk2[0]+2,hk2[1]+4],[hk2[0]+3,hk2[1]+2]],R[3],1.2);
+   // the bulk, then the apron over it
+   ell(g,hip[0]+2+ln*.5,23,7.5,8.5,R[2]);ell(g,hip[0]-1+ln*.5,20,4,4.5,R[3]);
+   poly(g,[[19+ln*.6,18],[31+ln*.6,18],[32,35],[18,35]],R[1]);pline(g,19+ln*.6,18,18,35,R[3]);pline(g,18,35,32,35,R[3]);pline(g,19+ln*.6,18,31+ln*.6,18,R[3]);
+   for(const[x,y]of[[24,26],[27,31],[22,33]]){px(g,x,y,R[2]);px(g,x,y+1,R[2]);}
+   // the near leg, a heavy boot
+   {const f=[33,gy],k=ik([hip[0]+3,hip[1]],f,9,9.5,1);bones(g,[hip[0]+3,hip[1]],k,f,4.6,3.8,3.2,R[2],R[3]);g.fillStyle=R[0];g.fillRect(f[0]-2,gy-2,6,3);}
+   // the hood, pointed, two holes that catch the light
+   poly(g,[[hd[0]-5,hd[1]+5],[hd[0]-3,hd[1]-5],[hd[0]-1,hd[1]-9],[hd[0]+2,hd[1]-4],[hd[0]+4,hd[1]+5],[hd[0],hd[1]+7]],R[1]);
+   pline(g,hd[0]-4,hd[1]+4,hd[0]-1.5,hd[1]-8,R[2]);px(g,hd[0],hd[1],R[4]);px(g,hd[0]+2,hd[1],R[4]);
+   // the hook arm: whirl overhead, rip down into the town, drag it back
+   const T=[50,43],hand=key(s,[[0,[31,7]],[.45,[30,6]],[.56,[38,20]],[.62,[37,22]],[1,[31,7]]]);
+   let hook;if(s<.5){const a=TAU*s*3;hook=[hand[0]+Math.cos(a)*12,hand[1]-2+Math.sin(a)*4.5];}
+   else if(s<.58){const t=smooth(.5,.58,s),a=TAU*1.5;hook=[hand[0]+(T[0]-hand[0])*t+Math.cos(a)*12*(1-t),hand[1]-2+(T[1]-hand[1]+2)*t];}
+   else{const t=smooth(.6,1,s);hook=[T[0]-t*12,T[1]-Math.sin(Math.PI*t)*6-t*20];hook=s<.75?[T[0]-smooth(.6,.75,s)*10,T[1]]:[40+(hand[0]+12-40)*smooth(.75,1,s),43+(hand[1]-2-43)*smooth(.75,1,s)];}
+   {const sa=[sh[0]+3,sh[1]],e=ik(sa,hand,6.5,6.5,-1);bones(g,sa,e,hand,4,3.4,3,R[2],R[3]);ell(g,sa[0],sa[1],3,2.6,R[3]);px(g,sa[0]-1,sa[1]-1.5,R[4]);ell(g,hand[0],hand[1],1.7,1.7,R[3]);}
+   links(g,R,hand,hook,s>.6&&s<.75?3:1,4);
+   stroke(g,[[hook[0],hook[1]-1],[hook[0],hook[1]+2],[hook[0]+2,hook[1]+3.5],[hook[0]+3.5,hook[1]+1.5]],R[4],1.4);
+   // what the hook tears out: a spurt, and bright orbs flung up
+   if(s>.56&&s<.95){const t=(s-.56)/.39;spurt(g,R,T[0],T[1]-1,-2,t,7,15,4);spurt(g,R,T[0],T[1]-1,-1.1,t,4,11,6);
+    for(let i=0;i<3;i++){const x=T[0]-t*(6+i*5),y=T[1]-3-Math.sin(Math.PI*Math.min(1,t*1.2))*(10+i*3);g.fillStyle=R[4];g.fillRect(Math.round(x),Math.round(y),2,2);px(g,x+1,y+1,R[3]);}}
+   ell(g,T[0]-2,gy,6,1.2,R[1]);}},
+ // Charger, the grunt: a bull-helmed gladiator with a shield; it paws and lowers its horns, bursts along the line, and skids to a stop on whatever it hits
+ h_charger:{W:46,H:32,f(g,u,R,W,H){const gy=31,dx=key(u,[[0,0],[.3,-1.5],[.36,-1.5],[.55,15],[.68,16],[1,0]]),cr=key(u,[[0,0],[.3,1],[.55,1],[.7,.3],[1,0]]),run=u>.36&&u<.56,walk=u>.7;
+   const x0=10+dx,hip=[x0+4,19+cr*1.5],sh=[x0+8+cr*3,12+cr*3],hc=[sh[0]+4,sh[1]-2.5+cr*1.2];
+   if(run)for(const[y,l]of[[10,7],[15,9],[21,6]])pline(g,x0-l-2,y,x0-3,y,R[1]);
+   const paw=u>.08&&u<.3?Math.sin(TAU*(u-.08)/.11):0;
+   const fp=i=>run?stepFoot(u*10+i*.5,hip[0]+2,gy,10,3.5):walk?stepFoot(u*5+i*.5,hip[0],gy,5,1.5):(u>.55&&u<=.7)?[hip[0]+(i?7:-4),gy]:[hip[0]+(i?(3+paw*2.5):-3),gy-(i?Math.max(0,paw)*1.5:0)];
+   const leg=(i,c,lit,g2)=>{const f=fp(i),k=ik(hip,f,6,6.5,1);bones(g,hip,k,f,3,2.4,2,c,lit);taper(g,[k[0]+(f[0]-k[0])*.25,k[1]+(f[1]-k[1])*.25],f,2.6,2.2,g2);pline(g,f[0],f[1],f[0]+2,f[1],R[0]);};
+   leg(0,R[1],0,R[2]);
+   // the sword arm, back and up
+   {const h=[sh[0]-4-cr,sh[1]+1-cr*2],e=ik([sh[0]-1,sh[1]],h,4,4,1);bones(g,[sh[0]-1,sh[1]],e,h,2.4,2,1.8,R[1]);stroke(g,[[h[0],h[1]],[h[0]-4,h[1]-7]],R[4],1.4);pline(g,h[0]-1,h[1]+1,h[0]+1,h[1]-1,R[3]);}
+   taper(g,hip,sh,6,7,R[2]);pline(g,hip[0]-2,hip[1]-1,sh[0]-2.5,sh[1]+.5,R[3]);pline(g,hip[0]+1,hip[1]-3,hip[0]+3,hip[1]-3,R[1]);
+   g.fillStyle=R[1];g.fillRect(Math.round(hip[0]-3),Math.round(hip[1]-1),6,2);poly(g,[[hip[0]-1,hip[1]+1],[hip[0]+3,hip[1]+1],[hip[0]+2,hip[1]+5],[hip[0],hip[1]+5]],R[1]);
+   leg(1,R[2],R[3],R[4]);
+   // the bull helm: horns forward, a slit, an eye in it
+   stroke(g,qpts([hc[0]-1,hc[1]-2],[hc[0]-5,hc[1]-3],[hc[0]-5,hc[1]-8],4),R[3],1.6);
+   ell(g,hc[0],hc[1],4.2,3.8,R[2]);ell(g,hc[0]+.6,hc[1]-.6,3.2,2.8,R[3]);pline(g,hc[0]-2.5,hc[1]-3,hc[0]+1.5,hc[1]-3.4,R[4]);
+   g.fillStyle=R[0];g.fillRect(Math.round(hc[0]+.5),Math.round(hc[1]-.5),4,1);px(g,hc[0]+2.5,hc[1]-.5,R[4]);
+   px(g,hc[0]+4,hc[1]+2,R[4]);px(g,hc[0]+4.5,hc[1]+3,R[4]);px(g,hc[0]+3.5,hc[1]+3,R[4]);
+   stroke(g,qpts([hc[0]+1,hc[1]-2.5],[hc[0]+6,hc[1]-3],[hc[0]+6,hc[1]-8.5],4),R[4],1.8);
+   if(u>.12&&u<.34&&Math.floor(u*24)%3===0){px(g,hc[0]+6,hc[1]+3,R[3]);px(g,hc[0]+7,hc[1]+2,R[2]);}
+   // the shield on the front arm, the boss forward
+   const sc=[sh[0]+4+(run?2:0),sh[1]+6.5];poly(g,[[sc[0]-1.5,sc[1]-5],[sc[0]+2,sc[1]-4.5],[sc[0]+2,sc[1]+5],[sc[0]-1.5,sc[1]+4.5]],R[1]);poly(g,[[sc[0]-1,sc[1]-4.3],[sc[0]+1.4,sc[1]-4],[sc[0]+1.4,sc[1]+4.3],[sc[0]-1,sc[1]+4]],R[3]);pline(g,sc[0]-1,sc[1]-4,sc[0]-1,sc[1]+4,R[4]);px(g,sc[0]+.5,sc[1],R[4]);px(g,sc[0]+.5,sc[1]-1,R[4]);pline(g,sc[0]-1,sc[1]-2.5,sc[0]+1,sc[1]-2.5,R[2]);pline(g,sc[0]-1,sc[1]+2.5,sc[0]+1,sc[1]+2.5,R[2]);
+   // the dust it throws: from the pawing heel, behind the run, ahead of the skid
+   if(paw>0)for(let i=0;i<3;i++)px(g,hip[0]-5-i*2,gy-1-((u*40+i)%3),R[2]);
+   if(run)for(let i=0;i<4;i++)px(g,x0-2-i*2.5,gy-((u*60+i*2)%4),R[2]);
+   if(u>.54&&u<.72){const t=(u-.54)/.18;for(let i=0;i<6;i++)px(g,hip[0]+9+t*(3+i*1.5),gy-1-Math.sin(Math.PI*t)*(1+i%3*1.5),i%2?R[3]:R[2]);}}},
+ // the leader, a red lanista: a crested officer of the arena under a standard of flayed hide scored with the tally; every five seconds it lifts the standard and calls the charge
+ h_leader:{W:50,H:56,f(g,u,R,W,H){const gy=55,call=smooth(.18,.28,u)*(1-smooth(.55,.75,u)),bob=Math.sin(TAU*u*2)*.4;
+   const hip=[24,35+bob],sh=[25,19+bob],hd=[26,12+bob-call*.5];
+   // the cape behind, the standard behind that
+   const cw=k=>Math.sin(TAU*(u*2-k*.3))*(1.2+call*1.5);
+   poly(g,[[20,18+bob],[27,18+bob],[19+cw(1),gy-4],[13+cw(1.3),gy-2],[8+cw(1.6),gy-6]],R[1]);pline(g,20,19+bob,9+cw(1.6),gy-7,R[2]);pline(g,23,20+bob,15+cw(1.2),gy-4,R[2]);
+   const top=[11,4+bob-call*4];stroke(g,[[11,gy],[top[0],top[1]]],R[1],1.6);pline(g,10.5,gy-1,10.5,top[1]+2,R[3]);
+   pline(g,top[0]-6,top[1]+3,top[0]+7,top[1]+3,R[3]);
+   const ban=[];for(let i=0;i<=6;i++){const x=top[0]-5+i*2,w=Math.sin(TAU*(u*2)+i*.7)*(.6+call*1.4)*(i/6);ban.push([x+w*.3,top[1]+4+w]);}
+   const banB=ban.map(([x,y],i)=>[x+Math.sin(TAU*u*2+i)*.5,y+12+(i%2?1.5:0)+Math.sin(TAU*(u*2)+i*.7)*(1+call*2)*(i/6)]);
+   poly(g,[...ban,...banB.reverse()],R[2]);pline(g,ban[0][0],ban[0][1]+1,ban[6][0],ban[6][1]+1,R[3]);
+   for(let i=0;i<4;i++){const x=ban[1+i][0],y=ban[1+i][1];pline(g,x,y+2,x,y+8,R[4]);}pline(g,ban[0][0]+1,ban[0][1]+8,ban[5][0]+1,ban[5][1]+3,R[4]);
+   // the finial: a heart on a spike
+   ell(g,top[0]-1,top[1],1.6,1.6,R[3]);ell(g,top[0]+1,top[1],1.6,1.6,R[3]);poly(g,[[top[0]-2.5,top[1]+.5],[top[0]+2.5,top[1]+.5],[top[0],top[1]+3]],R[3]);px(g,top[0]-1,top[1]-.5,R[4]);
+   pline(g,top[0],top[1]-2,top[0],top[1]-5,R[4]);
+   // legs, greaved
+   const leg=(f,c,lit,gr)=>{const k=ik(hip,f,10,10.5,1);bones(g,hip,k,f,4,3.2,2.6,c,lit);taper(g,[k[0]+(f[0]-k[0])*.2,k[1]+(f[1]-k[1])*.2],f,3.2,2.6,gr);g.fillStyle=R[0];g.fillRect(Math.round(f[0]-1),gy-1,4,2);};
+   leg([20,gy],R[1],0,R[2]);
+   // the arm on the standard
+   {const h=[12,27+bob-call*4],e=ik([sh[0]-4,sh[1]+1],h,6,6,1);bones(g,[sh[0]-4,sh[1]+1],e,h,3,2.6,2.2,R[1]);ell(g,h[0],h[1],1.6,1.6,R[2]);}
+   // cuirass and skirt of leather strips
+   for(let i=0;i<6;i++){const x=18.5+i*2.1;g.fillStyle=i%2?R[1]:R[2];g.fillRect(Math.round(x),Math.round(33+bob),2,7);}
+   poly(g,[[18,19+bob],[31,18+bob],[31.5,31+bob],[18.5,33+bob]],R[3]);poly(g,[[26,18.5+bob],[31,18+bob],[31.5,31+bob],[26,32+bob]],R[2]);
+   stroke(g,qpts([19.5,24+bob],[23,26+bob],[26,24+bob],4),R[4],1);stroke(g,qpts([26,24+bob],[28.5,26+bob],[31,24+bob],4),R[1],1);
+   pline(g,25,27+bob,25,31+bob,R[1]);pline(g,21,29+bob,24,29+bob,R[4]);g.fillStyle=R[1];g.fillRect(18,Math.round(31+bob),14,2);px(g,24,31+bob,R[4]);
+   leg([29,gy],R[2],R[3],R[4]);
+   // the sword arm: at rest by the hip; on the call, thrust out at the enemy
+   const hand=[31+call*12,30+bob-call*13],sa=[30,19+bob],e=ik(sa,hand,6.5,6.5,-1);
+   ell(g,sa[0],sa[1],3.6,3,R[3]);px(g,sa[0]-1,sa[1]-1.5,R[4]);bones(g,sa,e,hand,3,2.6,2.2,R[2],R[3]);
+   {const a=key(call,[[0,1.4],[1,-.5]]),b=[hand[0]+Math.cos(a)*8,hand[1]+Math.sin(a)*8];pline(g,hand[0],hand[1],b[0],b[1],R[4]);pline(g,hand[0]-Math.sin(a)*1.5,hand[1]+Math.cos(a)*1.5,hand[0]+Math.sin(a)*1.5,hand[1]-Math.cos(a)*1.5,R[3]);}
+   // the galea, a crest across it like a fan, an open mouth when it calls
+   ell(g,hd[0],hd[1],4,4.2,R[3]);pline(g,hd[0]-3,hd[1]-2,hd[0]-1,hd[1]-3.6,R[4]);g.fillStyle=R[2];g.fillRect(Math.round(hd[0]+1),Math.round(hd[1]-1),3.5,5);
+   px(g,hd[0]+2.5,hd[1],R[4]);pline(g,hd[0],hd[1]+1,hd[0],hd[1]+4,R[4]);if(call>.4){g.fillStyle=R[0];g.fillRect(Math.round(hd[0]+2),Math.round(hd[1]+2),2,2);}
+   for(let i=-5;i<=5;i++){const x0=hd[0]+i*.75,a=-Math.PI/2+i*.2+Math.sin(TAU*u*2)*.05*call,l=5.5-Math.abs(i)*.35;pline(g,x0,hd[1]-3.5,x0+Math.cos(a)*l,hd[1]-3.5+Math.sin(a)*l,i%2?R[3]:R[4]);}
+   // the call itself, carried forward
+   if(call>.5)for(let i=0;i<3;i++){const t=((u*4)+i/3)%1,r=4+t*8;stroke(g,qpts([hd[0]+4+r*.7,hd[1]-r*.5],[hd[0]+5+r,hd[1]+1],[hd[0]+4+r*.7,hd[1]+2+r*.5],3),t<.5?R[4]:R[3],1);}}},
+ // the titan, The Arena: a flayed champion as tall as the walls, a grille for a face and a heart caged in his chest;
+ // he stamps, hauls a cleaver up behind his head and brings it down, and the sand turns to blood around him
+ h_arena:{W:124,H:96,f(g,u,R,W,H){const gy=94,st=smooth(0,.38,u),wind=smooth(.42,.66,u),hitT=u>.72?(u-.72)/.28:0,b=beat(u*2),slam=smooth(.68,.73,u),rec=smooth(.84,1,u);
+   const dn=slam*(1-rec),lb=-wind*(1-slam)*2+dn*5;
+   const hip=[52,60+dn*3],ch=[55+lb,38+dn*5],hd=[57+lb*1.3,20+dn*6-wind*(1-slam)*1.5];
+   // the pool, the ripples, the cracks
+   ell(g,60,gy,50,5,R[1]);g.strokeStyle=R[2];g.lineWidth=1;g.beginPath();g.ellipse(60,gy,42,3.8,0,0,TAU);g.stroke();
+   const imp=[100,gy-1];
+   if(hitT>0){for(const[d,c]of[[0,R[4]],[.18,R[3]]]){const t=hitT-d;if(t>0&&t<.8){g.strokeStyle=c;g.lineWidth=t<.25?2:1;g.beginPath();g.ellipse(imp[0]-6,gy,6+t*40,1.5+t*5,0,0,TAU);g.stroke();}}
+    for(let i=0;i<5;i++){const a=Math.PI+(i-2)*.3;pline(g,imp[0],gy,imp[0]+Math.cos(a)*(6+i%2*4)*Math.min(1,hitT*4),gy+1,R[0]);}}
+   // the far leg
+   const leg=(f,c,lit,gr,w)=>{const k=ik(hip,f,19,19,1);bones(g,hip,k,f,w,w*.75,w*.6,c,lit);taper(g,[k[0]+(f[0]-k[0])*.2,k[1]+(f[1]-k[1])*.2],f,w*.68,w*.58,gr);
+     for(let i=1;i<4;i++){const t=.2+i*.2;pline(g,k[0]+(f[0]-k[0])*t-w*.3,k[1]+(f[1]-k[1])*t,k[0]+(f[0]-k[0])*t+w*.3,k[1]+(f[1]-k[1])*t,R[1]);}g.fillStyle=R[0];g.fillRect(Math.round(f[0]-4),Math.round(f[1]-2),10,3);};
+   leg([38,gy-1],R[1],0,R[2],11);
+   // the far arm, the chain wrapped on its fist, the weight on the end
+   {const s=[40+lb*.6,36+dn*5],f=[31+lb*.4,58+dn*4],e=ik(s,f,12,12,1);bones(g,s,e,f,9,7.5,6.5,R[1]);ell(g,f[0],f[1],4.5,4,R[1]);
+    const w=[26+Math.sin(TAU*u)*4+dn*-3,82+dn*3];links(g,R,[f[0],f[1]+3],w,2,3);knob(g,R,w[0],w[1],3.4,2);for(let i=0;i<6;i++){const a=i*TAU/6;px(g,w[0]+Math.cos(a)*5,w[1]+Math.sin(a)*5,R[4]);}}
+   // hips and the leather skirt
+   for(let i=0;i<9;i++){g.fillStyle=i%2?R[1]:R[2];g.fillRect(Math.round(38+i*3.2+lb*.2),Math.round(57+dn*3),3,11);}
+   // the torso: flayed muscle, the lit fibre on it, a cage over the heart
+   const o=lb,q=dn*5;
+   poly(g,[[46+o*1.2,22+q],[66+o*1.2,21+q],[76+o,31+q],[34+o,32+q]],R[2]);
+   const T=[[34+o,30+q],[76+o,29+q],[63+o*.5,59+dn*3],[44,59+dn*3]];poly(g,T,R[2]);poly(g,[[60+o,29+q],[76+o,29+q],[63+o*.5,59+dn*3],[56,59+dn*3]],R[1]);
+   ell(g,37+o,33+q,6,5,R[2]);ell(g,36+o,32+q,3.5,2.6,R[3]);
+   pline(g,34+o,33+q,44,58+dn*3,R[3]);pline(g,47+o*1.2,22+q,35+o,30+q,R[3]);
+   for(let i=0;i<3;i++){const y=47+i*4+dn*4;pline(g,46+o*.6,y,52+o*.6,y+.5,R[3]);pline(g,54+o*.6,y+.5,59+o*.6,y,R[0]);}
+   pline(g,53+o*.6,44+dn*4,53+o*.5,58+dn*3,R[0]);
+   stroke(g,qpts([39+o,35+q],[46+o,42+q],[55+o,37+q],5),R[3],1.4);
+   const hc=[52+lb,38+dn*5];ell(g,hc[0],hc[1],6.5,5.5,R[0]);knob(g,R,hc[0],hc[1]+.5,2.6+b*1.4+slam*(1-rec)*1.5,3);
+   for(const d of[-4,0,4])pline(g,hc[0]+d,hc[1]-5,hc[0]+d,hc[1]+5,R[4]);pline(g,hc[0]-6,hc[1],hc[0]+6,hc[1],R[3]);
+   // the near leg, stamping
+   leg([66,gy-1-Math.sin(Math.PI*st)*9],R[2],R[3],R[4],12);
+   if(u>.36&&u<.5){const t=(u-.36)/.14;for(let i=0;i<7;i++)px(g,66+(i-3)*(3+t*5),gy-1-Math.sin(Math.PI*t)*(2+i%3*2),i%2?R[3]:R[2]);}
+   // the head: a bucket helm, a grille, a row of spikes for a crown
+   poly(g,[[hd[0]-6,hd[1]-6],[hd[0]+6,hd[1]-7],[hd[0]+7,hd[1]+7],[hd[0]-5,hd[1]+8]],R[3]);poly(g,[[hd[0]+2,hd[1]-6.7],[hd[0]+6,hd[1]-7],[hd[0]+7,hd[1]+7],[hd[0]+2,hd[1]+7.6]],R[2]);
+   pline(g,hd[0]-5,hd[1]-5,hd[0]-4,hd[1]+7,R[4]);g.fillStyle=R[0];g.fillRect(Math.round(hd[0]-3),Math.round(hd[1]-1),10,2);px(g,hd[0],hd[1]-1,R[4]);px(g,hd[0]+4,hd[1]-1,R[4]);
+   for(let i=0;i<3;i++)for(let j=0;j<2;j++)px(g,hd[0]-1+i*2.5,hd[1]+3+j*2,R[0]);
+   for(let i=0;i<5;i++){const x=hd[0]-5+i*2.8;poly(g,[[x-1,hd[1]-6.5],[x+1,hd[1]-6.8],[x+.3,hd[1]-10-(i%2)*1.5]],R[4]);}
+   // the cleaver arm: at rest, hauled up behind the head, brought down on the sand
+   const sa=[70+lb,32+dn*5],hand=key(u,[[0,[80,58]],[.42,[80,58]],[.66,[60,6]],[.73,[96,72]],[.84,[96,72]],[1,[80,58]]]),ba=key(u,[[0,1.55],[.42,1.55],[.66,-2.7],[.73,.55],[.84,.55],[1,1.55]]);
+   {const d=[Math.cos(ba),Math.sin(ba)],n=[-d[1],d[0]],tip=[hand[0]+d[0]*28,hand[1]+d[1]*28];
+    pline(g,hand[0]-d[0]*3,hand[1]-d[1]*3,hand[0],hand[1],R[1]);
+    const Bl=[[hand[0]+d[0]*2,hand[1]+d[1]*2],tip,[tip[0]+n[0]*11,tip[1]+n[1]*11],[hand[0]+d[0]*6+n[0]*10,hand[1]+d[1]*6+n[1]*10]];
+    poly(g,Bl,R[3]);pline(g,Bl[0][0],Bl[0][1],Bl[1][0],Bl[1][1],R[1]);pline(g,Bl[2][0],Bl[2][1],Bl[3][0],Bl[3][1],R[4]);pline(g,Bl[1][0],Bl[1][1],Bl[2][0],Bl[2][1],R[4]);
+    for(let i=0;i<3;i++){const t=.3+i*.22,x=hand[0]+d[0]*28*t+n[0]*(4+i*2),y=hand[1]+d[1]*28*t+n[1]*(4+i*2);ell(g,x,y,1.4,1,R[1]);}
+    const e=ik(sa,hand,15,15,-1);bones(g,sa,e,hand,10,8,7,R[2],R[3]);taper(g,[e[0]+(hand[0]-e[0])*.4,e[1]+(hand[1]-e[1])*.4],hand,8,7.5,R[3]);ell(g,hand[0],hand[1],4.5,4.2,R[2]);px(g,hand[0]-2,hand[1]-2,R[3]);}
+   // the pauldron: layered plates and spikes
+   for(let i=2;i>=0;i--){ell(g,sa[0]+i*.8,sa[1]+i*2.6,9-i,4.4,i?R[2]:R[3]);pline(g,sa[0]-7+i,sa[1]+i*2.6-2.4,sa[0]+6-i,sa[1]+i*2.6-3,R[4]);}
+   for(let i=0;i<3;i++){const x=sa[0]-4+i*4;poly(g,[[x-1.4,sa[1]-3],[x+1.4,sa[1]-3.4],[x+.8,sa[1]-8-(i%2)*2]],R[4]);}
+   // the impact: a crown of blood and two arcs of it thrown
+   if(hitT>0&&hitT<.7){const t=hitT/.7;for(let i=0;i<11;i++){const a=Math.PI*(.06+.88*i/10),r=4+t*22;g.fillStyle=i%2?R[3]:R[4];const s=t<.35?2:1;g.fillRect(Math.round(imp[0]-6+Math.cos(a)*r),Math.round(gy-3-Math.sin(a)*r*.9*(1-t*.4)),s,s);}
+    spurt(g,R,imp[0]-6,gy-4,-2.3,t,7,22,8);spurt(g,R,imp[0],gy-4,-.8,t,7,20,9);}
+   goo(g,R,hc[0]-2,hc[1]+6,u*2,3,gy-hc[1]-12,1);}},
  // The Bottomless: a pack sprite with code-drawn tentacles behind her
  tentacles:{W:80,H:70,f(g,u,R,W,H){const rx=W/2,ry=H-26;
    for(let i=0;i<8;i++){const a0=-Math.PI+.25+i*(Math.PI-.5)/7,len=26+(i%3)*5,pts=[];let x=rx,y=ry,a=a0;
@@ -611,10 +732,10 @@ const BODY={
 // ---------- the roster, wheel order ----------
 const pk=(name,id,alt)=>({name,pack:id,alt}),cd=(name,id)=>({name,code:id});
 const ROSTER=[
- [pk('Weeper','tinyrat','g_weeper'),pk('Teratoma','worm1','g_teratoma'),pk('Gnasher','rat','g_gnasher'),pk('Leader · tbd','orcmage','g_mother'),pk('Spider-maw','sandworm','g_spider')],
+ [pk('Scab','tinyrat','g_weeper'),pk('Tumour','worm1','g_teratoma'),pk('Bloater','rat','g_gnasher'),pk('Plague-shepherd','orcmage','g_mother'),pk('The Carcass','sandworm','g_spider')],
  [pk('Hand','spider'),pk('Mouth','pot'),pk('Suitor','viper'),pk('Chaperone','beholder'),{name:'The Bride',pack:'female',over:'tentacles'}],
  [cd('Drone','drone'),cd('Beetle','beetle'),cd('Flock','flock'),cd('Mantis','mantis'),cd('The Sphere','sphere')],
- [pk('Tithe-runner','undead','h_runner'),pk('Flayer','enemy2','h_flayer'),pk('Charger','assassin','h_charger'),pk('Leader','dboss','h_leader'),pk('The Arena','troll','h_arena')],
+ [pk('Tithe-runner','undead','h_runner'),pk('Flayer','enemy2','h_flayer'),pk('Charger','assassin','h_charger'),pk('Red Lanista','dboss','h_leader'),pk('The Arena','troll','h_arena')],
  [pk('Ember','imp'),pk('Brand','elemental'),pk('Forge thrall','egolem'),pk('Hearth-thane','brute'),pk('The Sword','sgolem')],
  [cd('Mote','mote'),cd('Glare','glare'),cd('Comet','comet'),cd('Corona','corona'),cd('The Shrine','shrine')],
  [cd('Point','point'),cd('Edge','edge'),cd('Dasher','dasher'),cd('Leader','tetra'),cd('The Object','tesseract')],
