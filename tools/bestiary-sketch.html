@@ -506,50 +506,64 @@ const BODY={
    // a crown of mushrooms growing out of the cowl
    shroom(g,R,20,6+bob,4,2,-1.4);shroom(g,R,24.5,4+bob,6+pu,2.6,Math.sin(TAU*u)*.6);shroom(g,R,28.5,5+bob,3.5,1.8,1.2);
    flies(g,R,lp[0],lp[1]+1,4,5,4,u,13);}},
- // the titan: a carcass the size of a barn, an ox gone to bone, walking; its ribs are a cage round a wound that pulses rot every four seconds
- g_spider:{W:124,H:94,f(g,u,R,W,H){const gy=92,pk=u<.05?smooth(0,.05,u):1-smooth(.05,.35,u),bob=Math.sin(TAU*u*2)*1.2,hb=Math.sin(TAU*u*2+.6)*1.5;
-   // the rot pool it stands in, and the pulse spreading out of it
-   ell(g,60,gy,40,4.5,R[1]);g.strokeStyle=R[2];g.lineWidth=1;g.beginPath();g.ellipse(60,gy,34,3.4,0,0,TAU);g.stroke();
-   if(u<.6){const t=u/.6;g.strokeStyle=t<.4?R[4]:R[3];g.lineWidth=t<.3?2:1;g.beginPath();g.ellipse(60,gy,12+t*50,2+t*5,0,0,TAU);g.stroke();}
-   const hip=[34,40+bob],wi=[80,33+bob],sp=qpts(hip,[57,29+bob],wi,12);
-   const leg=(root,p,bx,l1,l2,c,lit,w)=>{const f=stepFoot(p,bx,gy-1,14,5),kn=ik(root,f,l1,l2,-1);bones(g,root,kn,f,w,w*.65,w*.5,c,lit);g.fillStyle=c;g.fillRect(Math.round(f[0]-2),Math.round(f[1]-1),5,2);return kn;};
-   leg([hip[0]+4,hip[1]+2],u+.5,40,27,28,R[1],0,6);leg([wi[0]-3,wi[1]+6],u+.75,80,24,26,R[1],0,5.5);
-   // the tail, hanging
-   stroke(g,qpts(hip,[24,44+bob],[23,58+Math.sin(TAU*u)*2]),R[2],2);
-   // the cage: a dark hollow, the wound in it, the ribs over it
-   poly(g,[...sp.slice(3,12),[76,66+bob],[60,69+bob],[47,64+bob]],R[0]);
-   const wc=[62,51+bob],wr=6+pk*2.2;
-   for(let i=0;i<6;i++){const a=i*1.05+.3;pline(g,wc[0],wc[1],wc[0]+Math.cos(a)*(wr+5),wc[1]+Math.sin(a)*(wr+4),R[1]);}
-   knob(g,R,wc[0],wc[1],wr,3);ell(g,wc[0]+1,wc[1]+1,wr*.45,wr*.35,pk>.4?R[4]:R[1]);
-   goo(g,R,wc[0]-1,wc[1]+wr,u*2,3,gy-wc[1]-wr-6,2);goo(g,R,wc[0]+4,wc[1]+wr-1,u*2+.5,2,gy-wc[1]-wr-6,1);
-   for(let i=0;i<7;i++){const s=sp[4+i],e=[s[0]+2-i*.3,66+bob-Math.abs(i-3)*.8+(i%2)];stroke(g,qpts(s,[s[0]+6,s[1]+15],e,6),R[4],2.2);pline(g,s[0]+2,s[1]+5,e[0]+1.5,e[1]-3,R[3]);}
-   // hide still on the haunch: dark, sore-pitted, torn at the bottom edge
-   const tear=[];for(let i=0;i<7;i++)tear.push([47-i*3.6,56+bob+(i%2?5:0)+Math.sin(TAU*u+i)*.8]);
-   poly(g,[[23,38+bob],[36,31+bob],[47,33+bob],[49,42+bob],...tear,[22,48+bob]],R[2]);
-   pline(g,24,38+bob,36,32+bob,R[3]);pline(g,36,32+bob,46,34+bob,R[3]);poly(g,[[40,46+bob],[49,42+bob],[47,56+bob],[40,58+bob]],R[1]);
-   for(const[x,y]of[[30,44],[38,40],[34,51],[43,49]]){ell(g,x,y+bob,1.6,1.2,R[0]);px(g,x-1,y-1+bob,R[3]);}
-   ell(g,33,37+bob,4.5,2.6,R[4]);px(g,31,36+bob,R[3]);
-   // bracket fungus on the haunch
-   for(const[x,y,w]of[[27,46,3.4],[29,49,2.6]]){ell(g,x,y+bob,w,1.5,R[3]);pline(g,x-w+.5,y+bob+1,x+w-.5,y+bob+1,R[1]);pline(g,x-w+1,y+bob-1,x+w-1,y+bob-1,R[4]);}
-   // the spine: a ridge of bone knives, mushrooms between them
-   stroke(g,sp,R[3],3);pline(g,sp[0][0],sp[0][1]-1,sp[12][0],sp[12][1]-1,R[4]);
-   for(let i=1;i<12;i++){const[x,y]=sp[i],h=4+(i%3)*1.5;poly(g,[[x-1.4,y],[x+1.4,y],[x-1+h*.25,y-h]],R[4]);}
-   for(const[i,h,w]of[[3,4,2.2],[6,5,2.6],[9,3.5,1.8]]){const[x,y]=sp[i];shroom(g,R,x+1.8,y-1,h,w,Math.sin(TAU*u+i)*.8);}
-   // the near legs, and the shoulder blade over the front one
-   leg(hip,u,34,27,28,R[3],R[4],7);const fk=leg([wi[0]-1,wi[1]+8],u+.25,82,24,26,R[3],R[4],6.5);
-   poly(g,[[74,33+bob],[84,32+bob],[81,49+bob],[74,46+bob]],R[4]);poly(g,[[79,33+bob],[84,32+bob],[81,49+bob],[78,47+bob]],R[3]);
-   for(let i=0;i<3;i++)pline(g,75+i*2,47+bob,74+i*2+Math.sin(TAU*u+i),52+bob+i%2*2,R[2]);
-   // the neck, and the skull hanging off it, horns crusted with growth
-   const sk=[103,55+bob+hb],nk=qpts(wi,[94,35+bob],[sk[0]-3,sk[1]-6],6);
-   for(let i=0;i<nk.length-1;i++)taper(g,nk[i],nk[i+1],7-i*.5,6.5-i*.5,R[2]);for(const p of nk)px(g,p[0],p[1]-2.5,R[4]);
-   stroke(g,qpts([sk[0]-3,sk[1]-5],[sk[0]-12,sk[1]-14],[sk[0]-4,sk[1]-22],6),R[3],2.6);
-   poly(g,[[sk[0]-5,sk[1]-6],[sk[0]+4,sk[1]-7],[sk[0]+7,sk[1]-1],[sk[0]+9,sk[1]+9],[sk[0]+6,sk[1]+12],[sk[0]+2,sk[1]+11],[sk[0]-3,sk[1]+1]],R[4]);
-   poly(g,[[sk[0]+4,sk[1]-7],[sk[0]+7,sk[1]-1],[sk[0]+9,sk[1]+9],[sk[0]+6,sk[1]+12],[sk[0]+5,sk[1]+2]],R[3]);
-   ell(g,sk[0],sk[1]-2,2.2,2,R[0]);px(g,sk[0]-.5,sk[1]-2.5,R[2]);g.fillStyle=R[0];g.fillRect(Math.round(sk[0]+5),Math.round(sk[1]+8),2,2);
-   for(let i=0;i<3;i++)px(g,sk[0]+2+i*1.5,sk[1]+11,R[1]);
-   stroke(g,qpts([sk[0]+1,sk[1]-6],[sk[0]+12,sk[1]-14],[sk[0]+5,sk[1]-24],6),R[4],3);pline(g,sk[0]+2,sk[1]-7,sk[0]+9,sk[1]-15,R[3]);
-   shroom(g,R,sk[0]+8,sk[1]-14,3,2,1);shroom(g,R,sk[0]-8,sk[1]-14,2.5,1.6,-1);
-   flies(g,R,62,46,7,22,10,u,21);}},
+ // the titan, a harvestman of rot: no head, only a gutted, plated abdomen slung high on eight long kinked legs of bone;
+ // every four seconds it heaves, the maw under it dilates, and it vomits sludge down into the pool it walks in
+ g_spider:{W:124,H:104,f(g,u,R,W,H){const gy=94,TA=TAU;
+   const heave=key(u,[[0,0],[.1,-1],[.18,1],[.3,.7],[.5,.3],[.62,0],[1,0]]),dil=smooth(.12,.2,u)*(1-smooth(.5,.62,u));
+   const sw=Math.sin(TA*u)*2.2,bob=Math.sin(TA*u*2)*1.3+heave*2.5,cx=62+sw,cy=34+bob;
+   const ax=20+heave*-1.5,ay=12-heave*1.2;           // abdomen half-size: squeezed tall then flattened as it heaves
+   const maw=[cx+1,cy+ay-1];
+   // the pool: a standing slick, swelling as the sludge lands, a ring running out of each splash
+   const land=smooth(.27,.33,u),pr=15+land*9*(1-smooth(.7,1,u));
+   ell(g,61,gy-1,pr+8,3.4,R[1]);ell(g,61,gy-1.5,pr,2.4,R[2]);pline(g,61-pr+3,gy-2.5,61+pr-5,gy-2.5,R[3]);
+   if(u>.28&&u<.85){const t=(u-.28)/.57;g.strokeStyle=t<.35?R[3]:R[2];g.lineWidth=1;g.beginPath();g.ellipse(61,gy-1,pr+4+t*30,2.6+t*2.4,0,0,TA);g.stroke();}
+   // the legs: four a side, roots round the underside, feet planted wide, knees cocked high over the body
+   const rest=[[-55,4],[-43,0],[-28,-1],[-14,2],[15,2],[29,-1],[44,0],[56,4]];   // foot x offset from 61, y lift toward the back
+   const legs=rest.map(([fx,back],i)=>{const side=fx<0?-1:1,far=i%2===1,ph=u*2+[0,.5,.25,.75,.12,.62,.37,.87][i];
+     const f=stepFoot(ph,61+fx,gy-(far?4:1)-back,7,5),root=[cx+side*(ax*.5+Math.abs(fx)*.08),cy+ay*.1];
+     const r0=[62+side*(10+Math.abs(fx)*.08),35],kd=[62+side*(15+Math.abs(fx)*.45),18-Math.abs(fx)*.12],fr=[61+fx,gy-(far?4:1)-back],l1=Math.hypot(kd[0]-r0[0],kd[1]-r0[1]),l2=Math.hypot(kd[0]-fr[0],kd[1]-fr[1])+.3;
+     const a=ik(root,f,l1,l2,1),b=ik(root,f,l1,l2,-1),k=a[1]<b[1]?a:b;return{root,k,f,far};});
+   const drawLeg=({root,k,f,far})=>{if(far){pline(g,root[0],root[1],k[0],k[1],R[2]);pline(g,k[0],k[1],f[0],f[1],R[2]);px(g,k[0],k[1],R[3]);}
+     else{taper(g,root,k,2.4,1.8,R[3]);taper(g,k,f,1.8,1.3,R[3]);pline(g,root[0],root[1]-1,k[0],k[1]-1,R[4]);pline(g,k[0],k[1],f[0]-(f[0]>k[0]?.5:-.5),f[1],R[4]);
+       ell(g,k[0],k[1],1.6,1.6,R[4]);px(g,k[0]-.5,k[1]-.5,R[3]);}
+     pline(g,f[0]-1,f[1],f[0]+1,f[1],far?R[2]:R[4]);};
+   legs.filter(l=>l.far).forEach(drawLeg);
+   // the vomit: a sludge column with lumps in it, globs falling free, a crown of splash where it lands
+   const fall=gy-3-maw[1];
+   if(u>.17&&u<.62){const t0=.17,head=Math.min(fall,.5*9000*Math.max(0,u-t0)**2),tail=u>.47?Math.min(fall,.5*9000*(u-.47)**2):0,w=1+dil*2.4;
+     const col=[];for(let y=tail;y<=head;y+=2){const wob=Math.sin(y*.25-u*60)*(1+y/fall*1.5);col.push([maw[0]+wob,maw[1]+y]);}
+     if(col.length>1){stroke(g,col,R[1],w+1.6);stroke(g,col,R[2],w);stroke(g,col.map(([x,y])=>[x-w*.3,y]),R[3],Math.max(.8,w*.35));
+       for(let i=0;i<col.length;i+=3){const[x,y]=col[i],h=hash(i,Math.floor(u*24),3);if(h<.35)ell(g,x+(h-.17)*8,y,1.4,1.2,R[1]);else if(h>.85)px(g,x+1,y,R[4]);}}
+     if(head>=fall){const st=Math.min(1,(u-.265)/.1);for(let i=0;i<7;i++){const a=-Math.PI/2+(i-3)*.42,v=6+hash(i,3,1)*7,tt=((u*20+i*.3)%1);
+       const x=maw[0]+Math.cos(a)*v*tt*1.6,y=gy-3-Math.sin(-a)*v*tt*(1.4-tt)*1.6;px(g,x,y,i%2?R[3]:R[2]);}
+       if(st<1)ell(g,maw[0],gy-3,3+st*6,1.4+st,R[3]);}}
+   for(let i=0;i<5;i++){const ti=.2+i*.075,t=u-ti;if(t>0){const y=maw[1]+.5*9000*t*t;if(y<gy-3)ell(g,maw[0]+(hash(i,5,2)-.5)*(6+t*40),y,1.6+i%2*.6,1.8,i%2?R[2]:R[3]);}}
+   // strings of it still hanging after, and a slow drip
+   if(u>.58||u<.12){const k=u>.58?(u-.58)/.42:1;for(let i=0;i<3;i++){const L=(2+i*3)*(1-k*.5)+dil;pline(g,maw[0]-2+i*2,maw[1],maw[0]-2+i*2+Math.sin(TA*u+i),maw[1]+L,i===1?R[2]:R[1]);}}
+   goo(g,R,maw[0]+3,maw[1],u*2+.3,2,fall-2,1);
+   // the abdomen: a lumpy, plated sack, not a ball; a ridge of bone plates along the back, sores, a fungus crest
+   const sk=[];for(let i=0;i<22;i++){const a=i/22*TA,h=hash(i,7,1),r=1+(h-.5)*.18+(i%3===0?.08:0);sk.push([cx+Math.cos(a)*ax*r,cy+Math.sin(a)*ay*r*(Math.sin(a)>0?1.05:1)]);}
+   poly(g,sk,R[1]);poly(g,sk.map(([x,y])=>[cx+(x-cx)*.88-1,cy+(y-cy)*.84-1.2]),R[2]);
+   // the underside: lighter, puckered round the maw
+   ell(g,maw[0],maw[1]-2,ax*.55,ay*.32,R[1]);
+   const mr=1.5+dil*3.2;for(let i=0;i<9;i++){const a=i/9*TA;pline(g,maw[0]+Math.cos(a)*(mr+.6),maw[1]-1+Math.sin(a)*(mr*.55+.3),maw[0]+Math.cos(a)*(mr+2.4),maw[1]-1+Math.sin(a)*(mr*.55+1.4),R[4]);}
+   ell(g,maw[0],maw[1]-1,mr+.8,mr*.55+.6,R[3]);ell(g,maw[0],maw[1]-1,mr,mr*.55,R[0]);if(dil>.3)ell(g,maw[0],maw[1]-.5,mr*.6,mr*.3,R[2]);
+   // bone plates: overlapping arcs across the back, each lit on its top edge
+   for(let j=0;j<5;j++){const t=(j-2)/2.4,x=cx+t*ax*.85,y=cy-ay*.2-Math.cos(t*1.2)*ay*.5;
+     const pw=4.6-Math.abs(j-2)*.5,ph=ay*.5;poly(g,[[x-pw,y+ph*.2],[x-pw*.5,y-ph*.35],[x+pw*.5,y-ph*.4],[x+pw,y+ph*.2],[x+pw*.5,y+ph*.45],[x-pw*.5,y+ph*.45]],R[3]);
+     pline(g,x-pw*.5,y-ph*.35,x+pw*.5,y-ph*.4,R[4]);pline(g,x-pw,y+ph*.2,x-pw*.5,y+ph*.45,R[1]);}
+   // the seams between the plates where it splits as it heaves
+   if(heave>.35)for(let j=0;j<4;j++){const t=(j-1.5)/2.4,x=cx+t*ax*.85;pline(g,x,cy-ay*.45,x+(j-1.5)*.5,cy-ay*.05,R[0]);}
+   for(let j=0;j<3;j++){const yy=cy+ay*(.2+j*.22),ww=ax*(.9-j*.18);stroke(g,qpts([cx-ww,yy-2],[cx,yy+2.5],[cx+ww,yy-2],6),j===0?R[3]:R[1],1);}
+   // sores on the flanks, wet rims
+   for(const[ox,oy,r]of[[-.72,.15,1.6],[-.5,.5,1.2],[.68,.3,1.8],[.45,.6,1.1],[.82,-.1,1]]){const x=cx+ox*ax,y=cy+oy*ay;ell(g,x,y,r+.8,r*.8+.6,R[3]);ell(g,x,y,r,r*.75,R[0]);}
+   // a bracket of fungus on one flank, and mushrooms on the back that the heave shakes
+   for(const[x,y,w]of[[cx-ax*.95,cy+2,3],[cx-ax*.85,cy+4.5,2.2]]){ell(g,x,y,w,1.3,R[3]);pline(g,x-w+.6,y-1,x+w-.6,y-1,R[4]);pline(g,x-w+.6,y+1,x+w-.6,y+1,R[1]);}
+   for(const[t,h,w]of[[-.35,5,2.4],[.05,6.5,2.8],[.42,4,2]]){shroom(g,R,cx+t*ax,cy-ay*.85+Math.abs(t)*3,h+dil,w,Math.sin(TA*u*3+t*5)*(.5+heave*1.5));}
+   // near legs over the body edge
+   legs.filter(l=>!l.far).forEach(drawLeg);
+   flies(g,R,cx,cy-6,6,24,8,u,21);
+   for(let i=0;i<4;i++){const t=(u*1.5+i*.25)%1;px(g,cx-8+i*5+Math.sin(TA*(t+i))*2,cy-ay-2-t*12,t<.5?R[4]:R[3]);}}},
  // Hueilei: the arena. Its servants are flayed fighters: skinless muscle in dark red, striped with the lit fibre, and armour
  // picked out in the palest stop. Everything is sharp (horns, hooks, blades, crests) and every move is a fighter's: a wind-up, then the hit.
  // Tithe-runner, the minion: a skinless courier sprinting home bent double under an amphora of blood that slops over as it runs
@@ -732,7 +746,7 @@ const BODY={
 // ---------- the roster, wheel order ----------
 const pk=(name,id,alt)=>({name,pack:id,alt}),cd=(name,id)=>({name,code:id});
 const ROSTER=[
- [pk('Scab','tinyrat','g_weeper'),pk('Tumour','worm1','g_teratoma'),pk('Bloater','rat','g_gnasher'),pk('Plague-shepherd','orcmage','g_mother'),pk('The Carcass','sandworm','g_spider')],
+ [pk('Scab','tinyrat','g_weeper'),pk('Tumour','worm1','g_teratoma'),pk('Bloater','rat','g_gnasher'),pk('Plague-shepherd','orcmage','g_mother'),pk('The Harvestman','sandworm','g_spider')],
  [pk('Hand','spider'),pk('Mouth','pot'),pk('Suitor','viper'),pk('Chaperone','beholder'),{name:'The Bride',pack:'female',over:'tentacles'}],
  [cd('Drone','drone'),cd('Beetle','beetle'),cd('Flock','flock'),cd('Mantis','mantis'),cd('The Sphere','sphere')],
  [pk('Tithe-runner','undead','h_runner'),pk('Flayer','enemy2','h_flayer'),pk('Charger','assassin','h_charger'),pk('Red Lanista','dboss','h_leader'),pk('The Arena','troll','h_arena')],
