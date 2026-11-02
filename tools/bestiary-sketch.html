@@ -49,7 +49,7 @@ main{padding:16px 20px 40px}
     <div><span class="lab">Zoom</span><span class="seg" id="zoom"><button data-v="1">1×</button><button data-v="2" class="on">2×</button><button data-v="3">3×</button></span></div>
     <div><span class="lab">Pack palette</span><span class="seg" id="pal"><button data-v="ramp" class="on">God ramp</button><button data-v="orig">Original</button></span></div>
     <div><span class="lab">Ground</span><span class="seg" id="ground"><button data-v="#1d241b" class="on">Grass</button><button data-v="#3b3226">Earth</button><button data-v="#24252b">Crypt</button></span></div>
-    <div><span class="lab">Gwulhorlw &amp; Hueilei</span><span class="seg" id="flesh"><button data-v="code" class="on">Code</button><button data-v="pack">Pack</button></span></div>
+    <div><span class="lab">Gwulhorlw, Bottomless &amp; Hueilei</span><span class="seg" id="flesh"><button data-v="code" class="on">Code</button><button data-v="pack">Pack</button></span></div>
     <div><span class="lab">God rings</span><span class="seg" id="rings"><button data-v="1" class="on">On</button><button data-v="0">Off</button></span></div>
   </div>
 </header>
@@ -229,6 +229,30 @@ function qpts(a,c,b,n=8){const o=[];for(let i=0;i<=n;i++){const t=i/n,m=1-t;o.pu
 function stepFoot(ph,x,gy,stride,lift){ph=((ph%1)+1)%1;return ph<.5?[x-stride/2+stride*smooth(0,.5,ph),gy-Math.sin(ph*TAU)*lift]:[x+stride/2-stride*(ph-.5)*2,gy];}
 // keyframed pose: keys [[u,value],...] with value a number or [x,y]; eased between keys
 function key(u,keys){if(u<=keys[0][0])return keys[0][1];for(let i=1;i<keys.length;i++){const[u1,v1]=keys[i],[u0,v0]=keys[i-1];if(u<=u1){const t=smooth(u0,u1,u);return Array.isArray(v0)?[v0[0]+(v1[0]-v0[0])*t,v0[1]+(v1[1]-v0[1])*t]:v0+(v1-v0)*t;}}return keys[keys.length-1][1];}
+
+// ---------- the Bottomless: hearts, tentacles from the abyss, the wail ----------
+// a joint probe: does nothing in the page; the measuring harness replaces it to log joint paths
+let J=()=>{};
+// a heart, point down
+function heart(g,x,y,s,c){ell(g,x-s*.5,y-s*.25,s*.56,s*.56,c);ell(g,x+s*.5,y-s*.25,s*.56,s*.56,c);poly(g,[[x-s*1.04,y-s*.05],[x+s*1.04,y-s*.05],[x,y+s*1.05]],c);}
+// an arm by forward angles (no IK, so it can never flip): shoulder angle a1, elbow bend a2
+function fk(sh,a1,l1,a2,l2){const e=[sh[0]+Math.cos(a1)*l1,sh[1]+Math.sin(a1)*l1];return[e,[e[0]+Math.cos(a1+a2)*l2,e[1]+Math.sin(a1+a2)*l2]];}
+// a tentacle as a chain: each segment's angle carries a wave that lags along the length, so motion
+// rolls from root to tip (overlapping action) instead of the whole thing swinging as one stick
+function tentPts(x,y,a0,len,n,u,ph,amp,lag,curl){const pts=[[x,y]];for(let i=1;i<=n;i++){const t=i/n,a=a0+curl*t*t+amp*t*Math.sin(TAU*u+ph-t*lag);
+ const p=pts[i-1];pts.push([p[0]+Math.cos(a)*len/n,p[1]+Math.sin(a)*len/n]);}return pts;}
+function tent(g,R,pts,w0,body=R[1],lit=R[2],suck=R[4]){const n=pts.length-1;
+ for(let i=0;i<n;i++){const t=i/n;taper(g,pts[i],pts[i+1],w0*(1-t*.82)+.6,w0*(1-(t+1/n)*.82)+.6,body);}
+ for(let i=0;i<n;i++){const t=i/n,[a,b]=[pts[i],pts[i+1]],dx=b[0]-a[0],dy=b[1]-a[1],d=Math.hypot(dx,dy)||1,o=Math.max(0,w0*(1-t*.82)/2-.4);
+  if(w0*(1-t*.82)>1.6)pline(g,a[0]+dy/d*o,a[1]-dx/d*o,b[0]+dy/d*o,b[1]-dx/d*o,lit);
+  if(suck&&i%2&&w0*(1-t*.82)>2)px(g,a[0]-dy/d*o,a[1]+dx/d*o,suck);}}
+// a rift in the ground: a hole of the abyss with a torn lit rim; o opens it 0..1
+function rift(g,R,x,y,rx,ry,o,seed=1){if(o<.05)return;const r=rng(seed),n=14,p=[];for(let i=0;i<n;i++){const a=i/n*TAU,k=.82+r()*.36;p.push([x+Math.cos(a)*rx*o*k,y+Math.sin(a)*ry*o*k]);}
+ poly(g,p.map(([a,b])=>[x+(a-x)*1.18,y+(b-y)*1.25]),R[2]);poly(g,p,R[0]);for(let i=0;i<n;i+=3)px(g,p[i][0],p[i][1]-1,R[3]);}
+// the wail: arcs of sound thrown from a mouth along dir; t0 drives them outward, w fades them in
+function wail(g,R,x,y,dir,spread,t0,L,n,w,full=false,r0=3){if(w<.05)return;g.lineCap='butt';
+ for(let k=0;k<n;k++){const r=((t0+k/n)%1+1)%1,rad=r0+r*L*w,c=r<.4?R[4]:r<.75?R[3]:R[2];g.strokeStyle=c;g.lineWidth=r<.5?1.6:1.25;g.beginPath();
+  if(full)g.ellipse(x,y,rad,rad*.62,0,0,TAU);else g.arc(x,y,rad,dir-spread*(.6+.4*r),dir+spread*(.6+.4*r));g.stroke();}}
 
 // ---------- the code-drawn bodies: f(g,u,R,W,H), u loops 0..1 ----------
 const BODY={
@@ -745,6 +769,149 @@ const BODY={
    if(hitT>0&&hitT<.7){const t=hitT/.7;for(let i=0;i<11;i++){const a=Math.PI*(.06+.88*i/10),r=4+t*22;g.fillStyle=i%2?R[3]:R[4];const s=t<.35?2:1;g.fillRect(Math.round(imp[0]-6+Math.cos(a)*r),Math.round(gy-3-Math.sin(a)*r*.9*(1-t*.4)),s,s);}
     spurt(g,R,imp[0]-6,gy-4,-2.3,t,7,22,8);spurt(g,R,imp[0],gy-4,-.8,t,7,20,9);}
    goo(g,R,hc[0]-2,hc[1]+6,u*2,3,gy-hc[1]-12,1);}},
+ // The Bottomless: devotees whose love for her has burst its banks. They scream for her, tear at
+ // the air for her, open the ground so her abyss can reach up, and mark what she covets as hers
+ // the Hand: a starved devotee bolting with a stolen heart hugged to its chest, screaming, its
+ // other arm thrown out ahead of it, the hand splayed and grasping at the next thing to be hers
+ b_hand:{W:40,H:30,f(g,u,R,W,H){const gy=H-1,p=u*3;
+  const leg=i=>{const ph=TAU*p+i*Math.PI,a1=Math.PI/2-.62*Math.sin(ph),b=.3+.95*(.5+.5*Math.sin(ph-1.5));return{a1,b,dy:6.5*Math.sin(a1)+7*Math.sin(a1+b)};};
+  const L=[leg(0),leg(1)],hip=[12,gy-Math.max(L[0].dy,L[1].dy)-.5],ta=-.55+.05*Math.sin(TAU*p*2),sh=[hip[0]+Math.cos(ta)*9,hip[1]+Math.sin(ta)*9],hc=[sh[0]+3,sh[1]-3];
+  const drawLeg=(l,c,lit,nm)=>{const k=[hip[0]+Math.cos(l.a1)*6.5,hip[1]+Math.sin(l.a1)*6.5],f=[k[0]+Math.cos(l.a1+l.b)*7,k[1]+Math.sin(l.a1+l.b)*7];J(nm+'k',k);J(nm+'f',f);
+   bones(g,hip,k,f,2.8,2.2,1.6,c,lit);pline(g,f[0],f[1],f[0]+1.6,f[1],c);};
+  // the hair, streaming back; each strand's wave rolls root to tip
+  for(let i=0;i<3;i++){const q=tentPts(hc[0]-1.5,hc[1]-1.8+i*1.2,Math.PI+.1+i*.16,11+i*2,6,p,i*.9,.4,3.4,.3);for(let s=0;s<6;s++)pline(g,q[s][0],q[s][1],q[s+1][0],q[s+1][1],R[1],s<2?2:1);}
+  drawLeg(L[1],R[1],R[2],'b');
+  // the far arm, thrown out ahead: shoulder leads, elbow and fingers follow late
+  const fa=-.3+.22*Math.sin(TAU*p+.3),fb=.1+.3*Math.sin(TAU*p-.9),fo=[sh[0]+1,sh[1]-.5],[fe,fh]=fk(fo,fa,7,fb,7);J('fe',fe);J('fh',fh);
+  bones(g,fo,fe,fh,2.2,1.9,1.7,R[2],R[3]);const fd=fa+fb,sp=.5+.3*Math.sin(TAU*p-1.8);ell(g,fh[0]+Math.cos(fd),fh[1]+Math.sin(fd),1.8,1.6,R[3]);
+  for(let i=0;i<4;i++){const a=fd+(i-1.5)*sp,q=[fh[0]+Math.cos(fd)*1.5,fh[1]+Math.sin(fd)*1.5];pline(g,q[0],q[1],q[0]+Math.cos(a)*4,q[1]+Math.sin(a)*4,R[i%2?3:4]);}
+  // the shift: rags thrown back by the run
+  const fl=Math.sin(TAU*p*2-1);poly(g,[[hip[0]+2,hip[1]-3],[hip[0]-7,hip[1]+1+fl],[hip[0]-5,hip[1]+2.5],[hip[0]-8,hip[1]+4+fl],[hip[0]-1,hip[1]+4]],R[1]);
+  taper(g,hip,sh,4,5,R[2]);pline(g,hip[0]+1,hip[1]-2,sh[0]-1,sh[1]-2,R[3]);
+  drawLeg(L[0],R[2],R[3],'a');
+  // the head, screaming ahead of itself
+  ell(g,hc[0],hc[1],3,3.2,R[3]);px(g,hc[0]-.8,hc[1]-2,R[4]);px(g,hc[0]+1.2,hc[1]-1.2,R[4]);
+  const m=1.5+.5*Math.sin(TAU*p*2);ell(g,hc[0]+2,hc[1]+1.3,1.3,m,R[0]);
+  // the near arm hugs the stolen heart; it beats
+  const ht=[sh[0]+2.6,sh[1]+3.4],el=[sh[0]-.6,sh[1]+4.4],bt=Math.max(0,Math.sin(TAU*u*6));bones(g,sh,el,ht,2.2,1.8,1.6,R[2],R[3]);
+  heart(g,ht[0]+.8,ht[1]-.6,1.8+bt*.4,R[4]);px(g,ht[0]+.3,ht[1]-1,R[3]);
+  for(let i=0;i<3;i++){const t=(u*6+i/3)%1;px(g,ht[0]-3-t*10,ht[1]+Math.sin(i*2+t*4)*1.5,t<.5?R[4]:R[3]);}}},
+ // the Mouth: a kneeling devotee whose face has become one mouth. She gathers a breath with her
+ // hands at her heart, then claws at her own cheeks and wails until the air shakes
+ b_mouth:{W:58,H:48,f(g,u,R,W,H){const gy=H-2,X=W/2,Wl=smooth(.26,.36,u)*(1-smooth(.8,.93,u)),I=smooth(.04,.2,u)*(1-smooth(.26,.44,u)),Am=smooth(.24,.5,u)*(1-smooth(.74,.98,u)),fl=TAU*u*6;
+  const sw=1.4*Wl*Math.sin(TAU*u*3),hc=[X+sw,gy-35-2*Wl+2*I],my=hc[1]+2+1.6*Wl,mh=1+6.5*Wl+.6*I;
+  // her hair, hanging, then lifted out by the scream
+  for(const s of[-1,1])for(let k=0;k<3;k++){const q=tentPts(hc[0]+s*(3.5+k*.9),hc[1]-4.5+k*2,Math.PI/2-s*(.3+k*.12+.5*Wl),14+k*2.5,6,u*2,k*.9+(s>0?0:1.7),.22+.15*Wl,3,s*(.45-.2*Wl));J('hair'+s+k,q[6]);tent(g,R,q,3,R[1],R[2],null);}
+  // knelt, the shift spread on the ground in hard points
+  poly(g,[[X-5,gy-20],[X+5,gy-20],[X+11,gy-8],[X+14,gy],[X+9,gy-2],[X+4,gy],[X,gy-2],[X-4,gy],[X-9,gy-2],[X-14,gy],[X-11,gy-8]],R[1]);
+  for(const k of[-9,-3,3,9])pline(g,X+k*.3,gy-19,X+k,gy-2,R[2]);
+  const sh=[[X-6+sw*.4,gy-29],[X+6+sw*.4,gy-29]];
+  poly(g,[[X-4.5,gy-20],[X+4.5,gy-20],sh[1],sh[0]],R[2]);for(let y=gy-27;y<gy-20;y+=2)pline(g,X-2+sw*.2,y,X+2+sw*.2,y,R[1]);
+  // a locket on a cord, swinging as she rocks
+  {const a=Math.PI/2-.3*Wl*Math.sin(TAU*u*3-1),n=[hc[0],hc[1]+6],l=[n[0]+Math.cos(a)*6,n[1]+Math.sin(a)*6];pline(g,n[0]-1.5,n[1],l[0],l[1],R[3]);heart(g,l[0],l[1]+1,1.3,R[4]);}
+  // her arms: hands on knees, then at her heart, then clawing her cheeks, elbows flung wide
+  // her arms by joint angles blended between three poses (hanging, at her heart, clawing her cheeks with
+  // elbows flung wide), so the elbow can never flip sides; the elbows lead the flail, the hands follow
+  const arms=[];for(const s of[-1,1]){const ph=s>0?0:1.4,a1=1.42+(1.3-1.42)*I+(-.46-1.42)*Am+.12*Am*Math.sin(fl+ph),a2=-.1+(2.3+.1)*I+(-2.26+.1)*Am+.22*Am*Math.sin(fl-1+ph);
+   const o=sh[s>0?1:0],[e,h]=fk(o,s>0?a1:Math.PI-a1,8,s>0?a2:-a2,8);J('e'+s,e);J('h'+s,h);arms.push([o,e,h,s]);}
+  for(const[o,e]of arms)taper(g,o,e,3,2.4,R[2]);
+  // the face: anguished brows, hollow eyes weeping, and the mouth
+  taper(g,[X+sw*.4,gy-29],[hc[0],hc[1]+4],3,3,R[2]);
+  ell(g,hc[0],hc[1]+Wl,5.4,6.4+2*Wl,R[3]);ell(g,hc[0]-1.8,hc[1]-2.6,2.2,2,R[4]);
+  for(const s of[-1,1]){ell(g,hc[0]+s*2.3,hc[1]-1.4,1,1.4,R[0]);pline(g,hc[0]+s*1.2,hc[1]-3.4,hc[0]+s*3.6,hc[1]-2.6,R[1]);pline(g,hc[0]+s*2.4,hc[1],hc[0]+s*2.8,hc[1]+2+Wl*2,R[4]);}
+  ell(g,hc[0],my,1.6+2*Wl,mh,R[0]);if(mh>3){ell(g,hc[0],my+1,1+1.2*Wl,mh-2,R[1]);for(const d of[-1,1]){px(g,hc[0]+d,my-mh+.6,R[4]);px(g,hc[0]+d,my+mh-1,R[4]);}}
+  for(const[o,e,h,s]of arms){taper(g,e,h,2.4,1.8,R[3]);pline(g,o[0],o[1]-1,e[0],e[1]-1,R[3]);for(let i=0;i<3;i++)pline(g,h[0],h[1],h[0]-s*.4+(i-1)*.9,h[1]-2.4-Wl*.6,R[4]);}
+  // the wail thrown out to both sides, and the air shaking above her
+  wail(g,R,hc[0],my,0,.6,u*9,24,3,Wl);wail(g,R,hc[0],my,Math.PI,.6,u*9+.5,24,3,Wl);
+  if(Wl>.4)for(let i=0;i<3;i++){const x=hc[0]-4+i*4,y=hc[1]-12-(i%2)*2,s=Math.sin(TAU*u*9+i)>0?1:-1;pline(g,x,y,x+1,y+s,R[2]);pline(g,x+1,y+s,x+2,y,R[2]);}}},
+ // the Suitor: a jilted gentleman, hat in hand no longer, rose wilting; he points, the ground tears
+ // open, and a tentacle of the abyss rises, lashes along the line he marked, and hauls back
+ b_suitor:{W:48,H:34,f(g,u,R,W,H){const gy=H-1,br=.3*Math.sin(TAU*u*2),rx=27;
+  const rise=smooth(.14,.34,u)*(1-smooth(.76,.92,u)),open=smooth(.06,.2,u)*(1-smooth(.86,.98,u));
+  // the telegraph: the line he means to drag you along
+  const tg=smooth(.26,.32,u)*(1-smooth(.46,.5,u));if(tg>.3)for(let x=rx+6;x<W-1;x+=3)px(g,x,gy-1,(x>>1)%2?R[3]:R[2]);
+  rift(g,R,rx,gy-1.5,7,2.2,open,5);
+  if(rise>.02){const a0=key(u,[[.14,-1.57],[.34,-1.5],[.44,-1.05],[.52,-.2],[.6,-.3],[.7,-1.95],[.8,-1.75],[.92,-1.57]]),cu=key(u,[[.14,0],[.34,-.7],[.44,-1.4],[.52,.55],[.6,.35],[.7,-1.9],[.8,-2.4],[.92,-1]]);
+   const q=tentPts(rx,gy-1.5,a0,4+16*rise,8,u*4,0,.22,3,cu);J('tip',q[8]);J('mid',q[4]);tent(g,R,q,3.8*Math.min(1,rise*1.6),R[2],R[3],R[4]);
+   if(u>.5&&u<.57){const t=q[8];for(let i=0;i<5;i++){const a=i*1.3,d=1.5+(u-.5)*40;px(g,t[0]+Math.cos(a)*d,t[1]+Math.sin(a)*d*.6,R[4]);}}
+   if(u>.58&&u<.74)for(let i=0;i<3;i++){const x=W-4-((u-.58)*90+i*6)%18;pline(g,x,gy-5-i*3,x+3,gy-5-i*3,R[3]);}}
+  // him: thin legs, a long tailcoat, a bowed head
+  const hp=[9,gy-10+br];pline(g,hp[0]-1,hp[1],6,gy,R[1],2);pline(g,hp[0]+1,hp[1],12,gy,R[1],2);pline(g,13,gy,14,gy,R[2]);
+  const tl=Math.sin(TAU*u*4-1)*.8;
+  const sa=key(u,[[0,1.35],[.08,1.35],[.2,-.35],[.4,-.2],[.5,.2],[.58,0],[.7,-.6],[.82,-.4],[.93,1.35],[1,1.35]]),sb=key(u,[[0,.3],[.2,-.1],[.5,0],[.7,-.5],[.93,.3],[1,.3]]);
+  const so=[12,gy-19+br],[e,h]=fk(so,sa,5,sb,5);J('se',e);J('sh',h);
+  poly(g,[[6,gy-20+br],[12.5,gy-20+br],[14,gy-10+br],[10,gy-12+br],[4,gy-4+tl],[1,gy-2+tl],[4.5,gy-12+br]],R[1]);pline(g,12,gy-19+br,11,gy-13+br,R[2]);px(g,12,gy-15+br,R[3]);px(g,12,gy-13+br,R[3]);
+  // the wilting rose in the back hand
+  const rh=[4,gy-12+br];pline(g,6,gy-19+br,rh[0],rh[1],R[1]);pline(g,rh[0],rh[1],rh[0]-1,rh[1]-4,R[2]);ell(g,rh[0]-1.6,rh[1]-5,1.6,1.4,R[3]);px(g,rh[0]-2,rh[1]-5.6,R[4]);
+  {const t=(u*2)%1;px(g,rh[0]-2-t*3,rh[1]-4+t*14,R[3]);}
+  const hc=[11.5,gy-22.5+br];ell(g,hc[0],hc[1],2.6,2.8,R[3]);px(g,hc[0]-.6,hc[1]-1,R[4]);poly(g,[[hc[0]-2.4,hc[1]-2.4],[hc[0]+1.8,hc[1]-3.2],[hc[0]+1.2,hc[1]-8],[hc[0]-2.6,hc[1]-7.4]],R[1]);pline(g,hc[0]-3.6,hc[1]-2.2,hc[0]+3,hc[1]-3.4,R[1]);pline(g,hc[0]-2.4,hc[1]-3.6,hc[0]+1.6,hc[1]-4.3,R[3]);heart(g,13,gy-17+br,1,R[4]);px(g,hc[0]+1.4,hc[1]-.2,R[0]);px(g,hc[0]+1.6,hc[1]+1.4,R[0]);
+  bones(g,so,e,h,2,1.6,1.4,R[1],R[2]);pline(g,h[0],h[1],h[0]+Math.cos(sa+sb)*2.4,h[1]+Math.sin(sa+sb)*2.4,R[3]);}},
+ // the Chaperone: a duenna under a high comb and a black mantilla, holding up a caged heart. Her
+ // tether finds a servant that strayed to you, marks it with her heart, and hauls it home
+ b_chap:{W:54,H:60,f(g,u,R,W,H){const gy=H-1,sw=.6*Math.sin(TAU*u*2),cx=17+sw*.5,tw=Math.sin(TAU*u*2-1.2);
+  const ra=key(u,[[0,1],[.1,1],[.24,-.3],[.68,-.22],[.8,-1.6],[.86,-1.5],[1,1]]),rb=key(u,[[0,-.8],[.1,-.8],[.24,.25],[.68,.3],[.8,-1.1],[.86,-1],[1,-.8]]);
+  // the veil behind her, its lace tips trailing late
+  poly(g,[[cx-6,gy-52],[cx+5,gy-52],[cx+5,gy-44],[cx+3,gy-38],[cx-3,gy-37],[cx-10,gy-27],[cx-14-tw,gy-13],[cx-11,gy-19],[cx-15-tw*.7,gy-21],[cx-10,gy-33],[cx-7,gy-44]],R[2]);
+  for(let y=gy-46;y<gy-18;y+=3)for(let x=cx-12;x<cx;x+=3)if(((x+y)>>1)%2)px(g,x+(y%2),y,R[1]);
+  // the far arm hangs a rosary of hearts that swings
+  const [le,lh]=fk([cx-4,gy-40],1.85+.08*Math.sin(TAU*u*2),6,-.7,6);bones(g,[cx-4,gy-40],le,lh,2,1.6,1.4,R[1],R[2]);
+  const rs=.35*Math.sin(TAU*u*2-1.6);for(let i=1;i<=4;i++){const a=Math.PI/2+rs*(i/4),b=[lh[0]+Math.cos(a)*i*2.6,lh[1]+Math.sin(a)*i*2.6];J('bead'+i,b);i<4?px(g,b[0],b[1],R[3]):heart(g,b[0],b[1]+1,1.2,R[3]);}
+  // the gown: hard pleats to a pointed hem
+  const hs=-sw*.6;poly(g,[[cx-3,gy-28],[cx+3,gy-28],[cx+8,gy-13],[cx+11+hs,gy-1],[cx+6+hs,gy-3],[cx+3+hs,gy],[cx-1+hs,gy-2],[cx-5+hs,gy],[cx-8+hs,gy-2],[cx-11+hs,gy],[cx-8,gy-13]],R[1]);
+  for(const k of[-8,-3,3,8])pline(g,cx+k*.25,gy-27,cx+k+hs,gy-2,R[2]);
+  poly(g,[[cx-3,gy-28],[cx+3,gy-28],[cx+5,gy-40],[cx-5,gy-40]],R[2]);for(let y=gy-38;y<gy-28;y+=3){px(g,cx-1,y,R[3]);px(g,cx+1,y+1,R[3]);}
+  // the comb and the shadowed face; she snarls as she hauls
+  for(let i=0;i<5;i++){const a=-Math.PI/2+(i-2)*.32,l=i%2?6:8;pline(g,cx,gy-49,cx+Math.cos(a)*l,gy-49+Math.sin(a)*l,R[3]);px(g,cx+Math.cos(a)*l,gy-49+Math.sin(a)*l,R[4]);}
+  const hc=[cx+1.5,gy-44];ell(g,hc[0],hc[1],3,3.6,R[0]);ell(g,hc[0]-.6,hc[1]-1,2.6,2.8,R[1]);px(g,hc[0],hc[1]-1,R[4]);px(g,hc[0]+2,hc[1]-1,R[4]);
+  const sn=smooth(.74,.8,u)*(1-smooth(.88,.96,u));if(sn>.3)pline(g,hc[0]-.5,hc[1]+1.6,hc[0]+2.5,hc[1]+1.6,R[4]);
+  // the near arm raises the caged heart
+  const so=[cx+4,gy-40],[re,rh]=fk(so,ra,7,rb,7);J('re',re);J('rh',rh);bones(g,so,re,rh,2.2,1.8,1.6,R[2],R[3]);
+  const cg=[rh[0]+Math.cos(ra+rb)*1.5,rh[1]+Math.sin(ra+rb)*1.5-2],bt=Math.max(0,Math.sin(TAU*u*4));
+  for(let i=0;i<6;i++){const a=i/6*TAU+.26;pline(g,cg[0],cg[1],cg[0]+Math.cos(a)*4.4,cg[1]+Math.sin(a)*4.4,i%2?R[2]:R[4]);}heart(g,cg[0],cg[1],1.9+bt*.5,R[3]);px(g,cg[0]-.8,cg[1]-1,R[4]);
+  // the tether: thrown, a heart stamped on the stray, hearts running home along it, then the haul
+  const ex=smooth(.22,.3,u)*(1-smooth(.74,.8,u)),T=[W-4,gy-30];
+  if(ex>.02){const end=[cg[0]+(T[0]-cg[0])*ex,cg[1]+(T[1]-cg[1])*ex],n=12;let pr=cg;
+   for(let i=1;i<=n;i++){const t=i/n,q=[cg[0]+(end[0]-cg[0])*t,cg[1]+(end[1]-cg[1])*t+Math.sin(Math.PI*t)*2*ex+Math.sin(TAU*(u*4)-t*6)*.9*Math.sin(Math.PI*t)];pline(g,pr[0],pr[1],q[0],q[1],R[3]);pr=q;}
+   if(ex>.95){for(let k=0;k<3;k++){const t=1-((u*6+k/3)%1);heart(g,cg[0]+(T[0]-cg[0])*t,cg[1]+(T[1]-cg[1])*t+Math.sin(Math.PI*t)*2-1.2,1.1,R[4]);}
+    const b=.5+.5*Math.sin(TAU*u*8);heart(g,T[0],T[1]-1,2.4+b*.6,R[4]);heart(g,T[0],T[1]-1,1.2,R[2]);g.strokeStyle=R[3];g.lineWidth=1.2;g.beginPath();g.ellipse(T[0],T[1]+5,3.4,1.4,0,0,TAU);g.stroke();}}
+  const fx=smooth(.76,.8,u)*(1-smooth(.82,.9,u));if(fx>.05)for(let i=0;i<6;i++){const a=i/6*TAU,d=2+fx*5;px(g,cg[0]+Math.cos(a)*d,cg[1]+Math.sin(a)*d,R[4]);}}},
+ // The Bride: her herald, standing in the hole she came out of. Her veil rises like a hood of
+ // wings, her skirt is tentacles, her heart is bare in an opened chest. She wails, and the abyss
+ // under her reaches out and hauls in
+ b_bride:{W:124,H:104,f(g,u,R,W,H){const gy=H-2,X=62,Wl=smooth(.3,.4,u)*(1-smooth(.78,.9,u)),P=smooth(.06,.28,u)*(1-smooth(.52,.74,u)),hv=1.2*Math.sin(TAU*u*2);
+  rift(g,R,X,gy-4,46,6,1,7);
+  // the abyss reaching: out while she gathers, hooking in while she screams
+  [[-34,0],[-22,1],[22,2],[34,3]].forEach(([dx,i])=>{const s=Math.sign(dx),a0=-Math.PI/2+s*(.3+.55*P),cu=-s*(.3+1.4*(1-P)),q=tentPts(X+dx,gy-4,a0,26+(i%2?6:0)+10*P,9,u*2,i*1.1,.3,3.5,cu);J('ab'+i,q[9]);tent(g,R,q,5);});
+  // her hair falls behind her to the waist
+  const hc=[X,31+hv-Wl];
+  for(let i=0;i<6;i++){const s=i<3?-1:1,k=i%3;tent(g,R,tentPts(X+s*(3+k*2),hc[1]-1,Math.PI/2+s*(.35+k*.12),26+k*3,7,u*2,i*.7,.18,3,-s*.25),3,R[1],R[0],null);}
+  // the veil: a long sheet from the crown, falling behind her to the hips; it billows out when she wails
+  {const n=10,Lp=[],Rp=[];for(let i=0;i<=n;i++){const t=i/n,y=hc[1]-6+t*58,w=5+t*20+Wl*9*t,r=Math.sin(TAU*u*2-t*4)*2.2*t;Lp.push([X-w+r,y]);Rp.push([X+w+r*.8,y]);}
+   const hem=[];for(let i=0;i<=8;i++){const t=i/8,a=Rp[n],b=Lp[n];hem.push([a[0]+(b[0]-a[0])*t,a[1]-(i%2?3:0)]);}
+   poly(g,[...Lp,...hem.reverse().slice(1,-1),...Rp.slice().reverse()],R[1]);J('veilL',Lp[n]);J('veilR',Rp[n]);
+   for(let i=1;i<=n;i++){pline(g,Lp[i-1][0],Lp[i-1][1],Lp[i][0],Lp[i][1],R[2]);pline(g,Rp[i-1][0],Rp[i-1][1],Rp[i][0],Rp[i][1],R[2]);}
+   for(let i=2;i<n;i++){const t=i/n;for(let k=-3;k<=3;k++)if((i+k)%2)px(g,X+k*(3+t*5)+Math.sin(TAU*u*2-t*4)*2*t,Lp[i][1],R[2]);}}
+  // the skirt: tentacles in two ranks, flaring and curling out at the tips; back rank dark
+  const sk=i=>tentPts(X-6+i*2,63+hv,Math.PI/2+(i-3)*.36,30-Math.abs(i-3)*.4,8,u*2,i*.9,.28,3.2,(i-3)*.42);
+  for(let i=1;i<7;i+=2){const q=sk(i);J('sk'+i,q[8]);tent(g,R,q,7.5,R[1],R[2],R[3]);}
+  for(let i=0;i<7;i+=2){const q=sk(i);J('sk'+i,q[8]);tent(g,R,q,8,R[2],R[3],R[4]);}
+  poly(g,[[X-6,58+hv],[X+6,58+hv],[X+12,69+hv],[X+6,66+hv],[X,70+hv],[X-6,66+hv],[X-12,69+hv]],R[2]);pline(g,X-6,58+hv,X-11,68+hv,R[3]);
+  // the bodice and the opened chest
+  poly(g,[[X-5,59+hv],[X+5,59+hv],[X+9,42+hv],[X-9,42+hv]],R[2]);pline(g,X-9,43+hv,X-5,58+hv,R[3]);
+  const bt=Math.max(0,Math.sin(TAU*u*4));ell(g,X,49+hv,4.2,4.6,R[0]);heart(g,X,48.5+hv,2.8+bt*.7,R[3]);px(g,X-1.4,47+hv,R[4]);
+  for(let y=53;y<58;y+=2){px(g,X-1,y+hv,R[3]);px(g,X+1,y+1+hv,R[3]);}
+  taper(g,[X,43+hv],[hc[0],hc[1]+4],3.4,3,R[3]);
+  // the arms: hanging, then thrown up and wide as she wails; elbows and fingers trail
+  const Aw=smooth(.14,.42,u)*(1-smooth(.72,.99,u));for(const s of[-1,1]){const a1=1.25+(-1.05-1.25)*Aw+.22*Aw*Math.sin(TAU*u*4+s)+.06*Math.sin(TAU*u*2),a2=.35-.85*Aw+.4*Aw*Math.sin(TAU*u*4-1.2+s);
+   const o=[X+s*9,43+hv],A1=s>0?a1:Math.PI-a1,A2=s>0?a2:-a2,[e,h]=fk(o,A1,15,A2,14);J('e'+s,e);J('h'+s,h);
+   for(let k=0;k<3;k++){const t=.35+k*.25,p=[o[0]+(e[0]-o[0])*t,o[1]+(e[1]-o[1])*t],l=5+k*1.5+Math.sin(TAU*u*2-k)*1;pline(g,p[0],p[1],p[0]-s*.6,p[1]+l,R[1]);}
+   bones(g,o,e,h,3.2,2.6,1.8,R[3],R[4]);const d=A1+A2;for(let i=0;i<4;i++){const a=d+(i-1.5)*.32*s;pline(g,h[0],h[1],h[0]+Math.cos(a)*5,h[1]+Math.sin(a)*5,R[3]);}}
+  // the face: pale, weeping black, the mouth dropping open into the wail; a crown of hearts
+  ell(g,hc[0],hc[1]+Wl,5,6+2*Wl,R[3]);ell(g,hc[0]-1.6,hc[1]-2,2,2.4,R[4]);
+  for(const s of[-1,1]){ell(g,X+s*2.2,hc[1]-1.5,1.1,1.6,R[0]);pline(g,X+s*2.2,hc[1],X+s*2.6,hc[1]+3+Wl*2,R[0]);}
+  const mh=.8+4.6*Wl,my=hc[1]+3+1.6*Wl;ell(g,X,my,1.2+2.2*Wl,mh,R[0]);if(Wl>.4){ell(g,X,my+.8,1+1.2*Wl,mh-1.6,R[1]);px(g,X-1,my-mh+.6,R[4]);px(g,X+1,my-mh+.6,R[4]);}
+  for(let i=-2;i<=2;i++){const a=-Math.PI/2+i*.42;heart(g,X+Math.cos(a)*7.6,hc[1]-1+Math.sin(a)*7.6,1.3,i%2?R[3]:R[4]);}
+  wail(g,R,X,my,0,0,u*10,46,3,Wl,true,13);}},
  // The Bottomless: a pack sprite with code-drawn tentacles behind her
  tentacles:{W:80,H:70,f(g,u,R,W,H){const rx=W/2,ry=H-26;
    for(let i=0;i<8;i++){const a0=-Math.PI+.25+i*(Math.PI-.5)/7,len=26+(i%3)*5,pts=[];let x=rx,y=ry,a=a0;
@@ -757,7 +924,7 @@ const BODY={
 const pk=(name,id,alt)=>({name,pack:id,alt}),cd=(name,id)=>({name,code:id});
 const ROSTER=[
  [pk('Scab','tinyrat','g_weeper'),pk('Tumour','worm1','g_teratoma'),pk('Bloater','rat','g_gnasher'),pk('Plague-shepherd','orcmage','g_mother'),pk('The Harvestman','sandworm','g_spider')],
- [pk('Hand','spider'),pk('Mouth','pot'),pk('Suitor','viper'),pk('Chaperone','beholder'),{name:'The Bride',pack:'female',over:'tentacles'}],
+ [pk('Hand','spider','b_hand'),pk('Mouth','pot','b_mouth'),pk('Suitor','viper','b_suitor'),pk('Chaperone','beholder','b_chap'),{name:'The Bride',pack:'female',over:'tentacles',alt:'b_bride'}],
  [cd('Drone','drone'),cd('Beetle','beetle'),cd('Flock','flock'),cd('Mantis','mantis'),cd('The Sphere','sphere')],
  [pk('Tithe-runner','undead','h_runner'),pk('Flayer','enemy2','h_flayer'),pk('Charger','assassin','h_charger'),pk('Red Lanista','dboss','h_leader'),pk('The Arena','troll','h_arena')],
  [pk('Ember','imp'),pk('Brand','elemental'),pk('Forge thrall','egolem'),pk('Hearth-thane','brute'),pk('The Sword','sgolem')],
@@ -828,7 +995,7 @@ function buildGrid(){const grid=document.getElementById('grid');grid.innerHTML='
   KINDS.forEach((k,ki)=>{const e=row[ki],cell=document.createElement('div');cell.className='cell';cell.style.setProperty('--ground',state.ground);
    const cv=document.createElement('canvas'),z=state.zoom,dpr=window.devicePixelRatio||1,W=k.cw,H=Math.ceil(bodyH(KINDS[4].r)+26);
    cv.width=Math.round(W*z*dpr);cv.height=Math.round(H*z*dpr);cv.style.width=W*z+'px';cv.style.height=H*z+'px';
-   const coded=e.code||useAlt(e),tag=e.over?'<span class="tag both">pack + code</span>':coded?'<span class="tag code">code</span>':'<span class="tag pack">pack</span>';
+   const coded=e.code||useAlt(e),tag=coded?'<span class="tag code">code</span>':e.over?'<span class="tag both">pack + code</span>':'<span class="tag pack">pack</span>';
    const src=coded?'drawn in code':PACK[e.pack].src+(e.over?' + tentacles':'');
    const cap=document.createElement('div');cap.className='cap';cap.innerHTML=`<b>${e.name}</b>${tag}<i title="${src}">${src}</i>`;
    cell.append(cv,cap);grid.append(cell);cells.push({cv,gi,ki,W,H,z,dpr});});});}
