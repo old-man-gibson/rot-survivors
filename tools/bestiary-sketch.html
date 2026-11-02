@@ -509,18 +509,32 @@ const BODY={
  // the titan, a harvestman of rot: no head, only a gutted, plated abdomen slung high on eight long kinked legs of bone;
  // every four seconds it heaves, the maw under it dilates, and it vomits sludge down into the pool it walks in
  g_spider:{W:124,H:104,f(g,u,R,W,H){const gy=94,TA=TAU;
-   const heave=key(u,[[0,0],[.1,-1],[.18,1],[.3,.7],[.5,.3],[.62,0],[1,0]]),dil=smooth(.12,.2,u)*(1-smooth(.5,.62,u));
-   const sw=Math.sin(TA*u)*2.2,bob=Math.sin(TA*u*2)*1.3+heave*2.5,cx=62+sw,cy=34+bob;
-   const ax=20+heave*-1.5,ay=12-heave*1.2;           // abdomen half-size: squeezed tall then flattened as it heaves
-   const maw=[cx+1,cy+ay-1];
-   // the pool: a standing slick, swelling as the sludge lands, a ring running out of each splash
-   const land=smooth(.27,.33,u),pr=15+land*9*(1-smooth(.7,1,u));
-   ell(g,61,gy-1,pr+8,3.4,R[1]);ell(g,61,gy-1.5,pr,2.4,R[2]);pline(g,61-pr+3,gy-2.5,61+pr-5,gy-2.5,R[3]);
-   if(u>.28&&u<.85){const t=(u-.28)/.57;g.strokeStyle=t<.35?R[3]:R[2];g.lineWidth=1;g.beginPath();g.ellipse(61,gy-1,pr+4+t*30,2.6+t*2.4,0,0,TA);g.stroke();}
-   // the legs: four a side, roots round the underside, feet planted wide, knees cocked high over the body
-   const rest=[[-55,4],[-43,0],[-28,-1],[-14,2],[15,2],[29,-1],[44,0],[56,4]];   // foot x offset from 61, y lift toward the back
+   // the retch: two dry heaves (hunch, tip, snap back), a rear-back, then a lurch forward and down that holds through three gushes
+   const P=v=>({tilt:key(v,[[0,0],[.06,.09],[.1,-.03],[.15,.11],[.2,-.03],[.3,-.1],[.38,.34],[.45,.27],[.5,.36],[.56,.28],[.6,.33],[.66,.27],[.74,.18],[.9,0],[1,0]]),
+     dx:key(v,[[0,0],[.3,-2.5],[.38,4.5],[.72,3.5],[.9,0],[1,0]]),dy:key(v,[[0,0],[.06,-1.5],[.1,1],[.15,-1.8],[.2,1],[.3,-3],[.38,6],[.5,7],[.6,6.5],[.72,5],[.9,0],[1,0]]),
+     h:key(v,[[0,0],[.06,1],[.1,0],[.15,1.1],[.2,0],[.3,1],[.37,-.7],[.42,.3],[.49,-.5],[.54,.3],[.59,-.4],[.64,.2],[.75,0],[1,0]]),
+     gape:key(v,[[0,0],[.06,.3],[.1,.08],[.15,.35],[.2,.08],[.3,.15],[.37,1],[.47,.75],[.5,1],[.57,.7],[.6,.9],[.68,.75],[.8,.3],[.95,.06],[1,0]])});
+   const pose=v=>{const p=P(v),sw=Math.sin(TA*v)*1.6,bob=Math.sin(TA*v*2)*1.1*(1-smooth(.28,.36,v)*(1-smooth(.72,.85,v)));
+     p.cx=62+sw+p.dx;p.cy=34+bob+p.dy;p.ax=20-p.h*1.6;p.ay=12+p.h*1.6;
+     const c=Math.cos(p.tilt),s=Math.sin(p.tilt);p.T=(lx,ly)=>[p.cx+lx*c-ly*s,p.cy+lx*s+ly*c];
+     p.m=p.T(p.ax*.95,p.ay*.3);p.dir=p.tilt-.2;return p;};
+   const p=pose(u),{cx,cy,ax,ay,T}=p,brace=smooth(.28,.36,u)*(1-smooth(.72,.85,u));
+   // the vomit: each gush a spray of chunks, globs and specks thrown forward out of the gullet, falling, and splattering where they land
+   const G=420,gl=gy-2,gush=[[.375,1,.065,11],[.495,.72,.05,23],[.595,.5,.04,37]],parts=[];
+   for(const[t0,str,dur,seed]of gush){const n=Math.round(46*str);for(let i=0;i<n;i++){const te=t0+dur*hash(i,seed,1),q=pose(te),
+       a=q.dir+(hash(i,seed,2)-.5)*.8,v=(38+hash(i,seed,3)*44)*(.62+str*.45),vx=Math.cos(a)*v,vy=Math.sin(a)*v,
+       k=hash(i,seed,4),type=k<.22?0:k<.55?1:2,gyi=gl-hash(i,seed,5)*4;     // 0 chunk, 1 glob, 2 speck
+       const ti=(-vy+Math.sqrt(vy*vy+2*G*(gyi-q.m[1])))/G;parts.push({te,x0:q.m[0],y0:q.m[1],vx,vy,ti,xi:q.m[0]+vx*ti,gyi,type,i,seed,str});}}
+   // the pool: an irregular slick, splats left where the vomit landed, sinking into it by the end of the loop
+   const fade=1-smooth(.78,1,u);
+   {const pc=100,pts=[];for(let i=0;i<18;i++){const a=i/18*TA,r=1+(hash(i,4,9)-.5)*.55;pts.push([pc+Math.cos(a)*24*r,gy-1+Math.sin(a)*3.2*r]);}poly(g,pts,R[1]);
+    for(const[x,w]of[[90,5],[101,7],[111,4]])ell(g,x,gy-1,w,1.3,R[2]);}
+   for(const q of parts){const tl=(u-q.te)*4;if(tl<q.ti||fade<=0)continue;const w=(q.type===0?3.2:q.type===1?2.2:1.2)*fade*(.7+hash(q.i,q.seed,6)*.6);
+     ell(g,q.xi,q.gyi+1,w+.8,.9+w*.25,R[1]);if(q.type<2)ell(g,q.xi-.4,q.gyi+.6,w*.6,.6,q.type?R[3]:R[2]);}
+   // the legs, four a side; while it braces the feet stop stepping and plant
+   const rest=[[-55,4],[-43,0],[-28,-1],[-14,2],[15,2],[29,-1],[44,0],[56,4]];
    const legs=rest.map(([fx,back],i)=>{const side=fx<0?-1:1,far=i%2===1,ph=u*2+[0,.5,.25,.75,.12,.62,.37,.87][i];
-     const f=stepFoot(ph,61+fx,gy-(far?4:1)-back,7,5),root=[cx+side*(ax*.5+Math.abs(fx)*.08),cy+ay*.1];
+     const f=stepFoot(ph,61+fx+(side>0?brace*2:0),gy-(far?4:1)-back,7*(1-brace*.8),5*(1-brace)),root=T(side*(ax*.5+Math.abs(fx)*.08),ay*.1);
      const r0=[62+side*(10+Math.abs(fx)*.08),35],kd=[62+side*(15+Math.abs(fx)*.45),18-Math.abs(fx)*.12],fr=[61+fx,gy-(far?4:1)-back],l1=Math.hypot(kd[0]-r0[0],kd[1]-r0[1]),l2=Math.hypot(kd[0]-fr[0],kd[1]-fr[1])+.3;
      const a=ik(root,f,l1,l2,1),b=ik(root,f,l1,l2,-1),k=a[1]<b[1]?a:b;return{root,k,f,far};});
    const drawLeg=({root,k,f,far})=>{if(far){pline(g,root[0],root[1],k[0],k[1],R[2]);pline(g,k[0],k[1],f[0],f[1],R[2]);px(g,k[0],k[1],R[3]);}
@@ -528,40 +542,45 @@ const BODY={
        ell(g,k[0],k[1],1.6,1.6,R[4]);px(g,k[0]-.5,k[1]-.5,R[3]);}
      pline(g,f[0]-1,f[1],f[0]+1,f[1],far?R[2]:R[4]);};
    legs.filter(l=>l.far).forEach(drawLeg);
-   // the vomit: a sludge column with lumps in it, globs falling free, a crown of splash where it lands
-   const fall=gy-3-maw[1];
-   if(u>.17&&u<.62){const t0=.17,head=Math.min(fall,.5*9000*Math.max(0,u-t0)**2),tail=u>.47?Math.min(fall,.5*9000*(u-.47)**2):0,w=1+dil*2.4;
-     const col=[];for(let y=tail;y<=head;y+=2){const wob=Math.sin(y*.25-u*60)*(1+y/fall*1.5);col.push([maw[0]+wob,maw[1]+y]);}
-     if(col.length>1){stroke(g,col,R[1],w+1.6);stroke(g,col,R[2],w);stroke(g,col.map(([x,y])=>[x-w*.3,y]),R[3],Math.max(.8,w*.35));
-       for(let i=0;i<col.length;i+=3){const[x,y]=col[i],h=hash(i,Math.floor(u*24),3);if(h<.35)ell(g,x+(h-.17)*8,y,1.4,1.2,R[1]);else if(h>.85)px(g,x+1,y,R[4]);}}
-     if(head>=fall){const st=Math.min(1,(u-.265)/.1);for(let i=0;i<7;i++){const a=-Math.PI/2+(i-3)*.42,v=6+hash(i,3,1)*7,tt=((u*20+i*.3)%1);
-       const x=maw[0]+Math.cos(a)*v*tt*1.6,y=gy-3-Math.sin(-a)*v*tt*(1.4-tt)*1.6;px(g,x,y,i%2?R[3]:R[2]);}
-       if(st<1)ell(g,maw[0],gy-3,3+st*6,1.4+st,R[3]);}}
-   for(let i=0;i<5;i++){const ti=.2+i*.075,t=u-ti;if(t>0){const y=maw[1]+.5*9000*t*t;if(y<gy-3)ell(g,maw[0]+(hash(i,5,2)-.5)*(6+t*40),y,1.6+i%2*.6,1.8,i%2?R[2]:R[3]);}}
-   // strings of it still hanging after, and a slow drip
-   if(u>.58||u<.12){const k=u>.58?(u-.58)/.42:1;for(let i=0;i<3;i++){const L=(2+i*3)*(1-k*.5)+dil;pline(g,maw[0]-2+i*2,maw[1],maw[0]-2+i*2+Math.sin(TA*u+i),maw[1]+L,i===1?R[2]:R[1]);}}
-   goo(g,R,maw[0]+3,maw[1],u*2+.3,2,fall-2,1);
-   // the abdomen: a lumpy, plated sack, not a ball; a ridge of bone plates along the back, sores, a fungus crest
+   // the abdomen, drawn in its own tipped frame: a lumpy plated sack, sores, fungus, the gullet at the front underside
+   g.save();g.translate(cx,cy);g.rotate(p.tilt);g.translate(-cx,-cy);
    const sk=[];for(let i=0;i<22;i++){const a=i/22*TA,h=hash(i,7,1),r=1+(h-.5)*.18+(i%3===0?.08:0);sk.push([cx+Math.cos(a)*ax*r,cy+Math.sin(a)*ay*r*(Math.sin(a)>0?1.05:1)]);}
    poly(g,sk,R[1]);poly(g,sk.map(([x,y])=>[cx+(x-cx)*.88-1,cy+(y-cy)*.84-1.2]),R[2]);
-   // the underside: lighter, puckered round the maw
-   ell(g,maw[0],maw[1]-2,ax*.55,ay*.32,R[1]);
-   const mr=1.5+dil*3.2;for(let i=0;i<9;i++){const a=i/9*TA;pline(g,maw[0]+Math.cos(a)*(mr+.6),maw[1]-1+Math.sin(a)*(mr*.55+.3),maw[0]+Math.cos(a)*(mr+2.4),maw[1]-1+Math.sin(a)*(mr*.55+1.4),R[4]);}
-   ell(g,maw[0],maw[1]-1,mr+.8,mr*.55+.6,R[3]);ell(g,maw[0],maw[1]-1,mr,mr*.55,R[0]);if(dil>.3)ell(g,maw[0],maw[1]-.5,mr*.6,mr*.3,R[2]);
-   // bone plates: overlapping arcs across the back, each lit on its top edge
    for(let j=0;j<5;j++){const t=(j-2)/2.4,x=cx+t*ax*.85,y=cy-ay*.2-Math.cos(t*1.2)*ay*.5;
      const pw=4.6-Math.abs(j-2)*.5,ph=ay*.5;poly(g,[[x-pw,y+ph*.2],[x-pw*.5,y-ph*.35],[x+pw*.5,y-ph*.4],[x+pw,y+ph*.2],[x+pw*.5,y+ph*.45],[x-pw*.5,y+ph*.45]],R[3]);
      pline(g,x-pw*.5,y-ph*.35,x+pw*.5,y-ph*.4,R[4]);pline(g,x-pw,y+ph*.2,x-pw*.5,y+ph*.45,R[1]);}
-   // the seams between the plates where it splits as it heaves
-   if(heave>.35)for(let j=0;j<4;j++){const t=(j-1.5)/2.4,x=cx+t*ax*.85;pline(g,x,cy-ay*.45,x+(j-1.5)*.5,cy-ay*.05,R[0]);}
-   for(let j=0;j<3;j++){const yy=cy+ay*(.2+j*.22),ww=ax*(.9-j*.18);stroke(g,qpts([cx-ww,yy-2],[cx,yy+2.5],[cx+ww,yy-2],6),j===0?R[3]:R[1],1);}
-   // sores on the flanks, wet rims
-   for(const[ox,oy,r]of[[-.72,.15,1.6],[-.5,.5,1.2],[.68,.3,1.8],[.45,.6,1.1],[.82,-.1,1]]){const x=cx+ox*ax,y=cy+oy*ay;ell(g,x,y,r+.8,r*.8+.6,R[3]);ell(g,x,y,r,r*.75,R[0]);}
-   // a bracket of fungus on one flank, and mushrooms on the back that the heave shakes
+   if(p.h>.4)for(let j=0;j<4;j++){const t=(j-1.5)/2.4,x=cx+t*ax*.85;pline(g,x,cy-ay*.45,x+(j-1.5)*.5,cy-ay*.05,R[0]);}
+   for(let j=0;j<3;j++){const yy=cy+ay*(.2+j*.22),ww=ax*(.9-j*.18);stroke(g,qpts([cx-ww,yy-2],[cx-4,yy+2.5],[cx+ww*.5,yy-1],6),j===0?R[3]:R[1],1);}
+   for(const[ox,oy,r]of[[-.72,.15,1.6],[-.5,.5,1.2],[.3,-.05,1.4],[-.15,.55,1.1],[.55,-.3,1]]){const x=cx+ox*ax,y=cy+oy*ay;ell(g,x,y,r+.8,r*.8+.6,R[3]);ell(g,x,y,r,r*.75,R[0]);}
    for(const[x,y,w]of[[cx-ax*.95,cy+2,3],[cx-ax*.85,cy+4.5,2.2]]){ell(g,x,y,w,1.3,R[3]);pline(g,x-w+.6,y-1,x+w-.6,y-1,R[4]);pline(g,x-w+.6,y+1,x+w-.6,y+1,R[1]);}
-   for(const[t,h,w]of[[-.35,5,2.4],[.05,6.5,2.8],[.42,4,2]]){shroom(g,R,cx+t*ax,cy-ay*.85+Math.abs(t)*3,h+dil,w,Math.sin(TA*u*3+t*5)*(.5+heave*1.5));}
-   // near legs over the body edge
+   for(const[t,h,w]of[[-.35,5,2.4],[.05,6.5,2.8],[.42,4,2]]){shroom(g,R,cx+t*ax,cy-ay*.85+Math.abs(t)*3,h,w,Math.sin(TA*u*3+t*5)*(.5+Math.abs(p.h)*1.5));}
+   g.restore();
    legs.filter(l=>!l.far).forEach(drawLeg);
+   // the gullet: a torn mouth in the front of the belly, lips peeled back, teeth round it, opening wide
+   {const gp=p.gape,[mx,my]=p.m,rx=2+gp*4.5,ry=1.4+gp*3.6;g.save();g.translate(mx-1,my);g.rotate(p.tilt+.35);
+    const lip=[];for(let i=0;i<14;i++){const a=i/14*TA,j=1+(i%2?.28:0)+(hash(i,8,1)-.5)*.2;lip.push([Math.cos(a)*(rx+2)*j,Math.sin(a)*(ry+1.8)*j]);}
+    poly(g,lip,R[1]);poly(g,lip.map(([x,y])=>[x*.86,y*.86]),R[3]);pline(g,-rx-1,-ry-1,rx*.6,-ry-1.6,R[4]);
+    ell(g,0,0,rx,ry,R[0]);if(gp>.5)ell(g,rx*.25,ry*.25,rx*.45,ry*.35,R[1]);
+    for(let i=0;i<7;i++){const a=Math.PI+.25+i*.42,b=a+.18,c=a-.18,o=[Math.cos(a)*rx*.45,Math.sin(a)*ry*.45];
+      poly(g,[[Math.cos(b)*(rx+.6),Math.sin(b)*(ry+.6)],[Math.cos(c)*(rx+.6),Math.sin(c)*(ry+.6)],o],R[4]);
+      const a2=.25+i*.42,o2=[Math.cos(a2)*rx*.5,Math.sin(a2)*ry*.5];if(i%2===0)poly(g,[[Math.cos(a2+.2)*(rx+.6),Math.sin(a2+.2)*(ry+.6)],[Math.cos(a2-.2)*(rx+.6),Math.sin(a2-.2)*(ry+.6)],o2],R[4]);}
+    g.restore();}
+   // in flight: strands joining the first of each gush while they are close, then chunks, globs and specks; splash where each lands
+   const live=parts.map(q=>{const t=(u-q.te)*4;return t>=0&&t<q.ti?{q,x:q.x0+q.vx*t,y:q.y0+q.vy*t+.5*G*t*t,t}:null;});
+   for(let i=1;i<live.length;i++){const a=live[i-1],b=live[i];if(a&&b&&a.q.seed===b.q.seed&&a.q.type<2&&Math.hypot(a.x-b.x,a.y-b.y)<7&&a.t<.22)pline(g,a.x,a.y,b.x,b.y,R[2]);}
+   for(const L of live){if(!L)continue;const{q,x,y}=L,big=q.str*(.8+hash(q.i,q.seed,7)*.5);
+     if(q.type===0){ell(g,x,y,1.4*big+.6,1.1*big+.5,R[1]);px(g,x-.5,y-.5,R[3]);if(hash(q.i,q.seed,8)>.6)px(g,x+.5,y,R[4]);}
+     else if(q.type===1){ell(g,x,y,1*big+.3,1.3*big+.3,R[3]);px(g,x-.4,y-.6,R[4]);}
+     else px(g,x,y,hash(q.i,q.seed,9)>.5?R[4]:R[3]);}
+   for(const q of parts){const tl=(u-q.te)*4-q.ti;if(tl<0||tl>.28||q.type===2)continue;const s=tl/.28;
+     for(let j=0;j<(q.type===0?4:3);j++){const a=Math.PI*(.12+.76*hash(q.i*5+j,q.seed,11)),v=10+hash(q.i*5+j,q.seed,12)*14;
+       const x=q.xi+Math.cos(a)*v*tl*1.6*(j%2?1:-1)*.9,y=q.gyi-Math.sin(a)*v*tl+.5*G*.5*tl*tl;if(y<q.gyi+1)px(g,x,y,j%2?R[3]:R[4]);}
+     if(s<.5)ell(g,q.xi,q.gyi,1.5+s*5,.8+s,R[3]);}
+   // ropes of drool from the lips, swinging as it heaves, thinning away by the end of the loop
+   {const m=p.m,dr=smooth(.4,.5,u)*(1-smooth(.88,1,u));if(dr>0)for(let i=0;i<3;i++){const L=(9+i*6+Math.sin(TA*u*2+i)*2.5)*dr,sw=Math.sin(TA*u*3+i*1.7)*(2+i)*dr+(i-1)*2,
+       e=[m[0]+sw+1,m[1]+L],pts=qpts([m[0]-2+i*2,m[1]],[m[0]+sw*.3+i,m[1]+L*.6],e,6);for(let k=0;k<pts.length-1;k++)pline(g,pts[k][0],pts[k][1],pts[k+1][0],pts[k+1][1],i===1?R[3]:R[2]);
+       ell(g,e[0],e[1]+.5,1+i*.3,1.3+i*.2,i===1?R[3]:R[2]);}}
+   if(u>.05&&u<.3&&p.gape>.25){px(g,p.m[0]+1,p.m[1]+2,R[3]);px(g,p.m[0]+2,p.m[1]+4+((u*50)%3),R[2]);}
    flies(g,R,cx,cy-6,6,24,8,u,21);
    for(let i=0;i<4;i++){const t=(u*1.5+i*.25)%1;px(g,cx-8+i*5+Math.sin(TA*(t+i))*2,cy-ay-2-t*12,t<.5?R[4]:R[3]);}}},
  // Hueilei: the arena. Its servants are flayed fighters: skinless muscle in dark red, striped with the lit fibre, and armour
