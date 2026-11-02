@@ -2,6 +2,8 @@
 tilemaps/
 # Frames cut from those packs; rebuild with `python tools/prepare-actors.py`
 assets/actors/*.png
+# Test screenshots show that art in-game; the tests write them on every run
+tests/*.png
 
 # Local tool scratch
 .codex-remote-attachments/
