@@ -1,5 +1,7 @@
 # Licensed asset packs (Epic RPG World) — large and not redistributable
 tilemaps/
+# Frames cut from those packs; rebuild with `python tools/prepare-actors.py`
+assets/actors/*.png
 
 # Local tool scratch
 .codex-remote-attachments/
